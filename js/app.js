@@ -20,6 +20,7 @@ class RetroLensApp {
         this.drawingCanvas = document.createElement('canvas');
         this.drawingCtx = this.drawingCanvas.getContext('2d');
         this.isAirDrawing = false;
+        this.isEraser = false;
         this.lastDrawPt = null;
 
         // Mobile Device Detection
@@ -156,6 +157,9 @@ class RetroLensApp {
         const btnDraw = document.getElementById('btnDraw');
         if (btnDraw) btnDraw.addEventListener('click', () => this.toggleAirDrawing());
 
+        const btnEraser = document.getElementById('btnEraser');
+        if (btnEraser) btnEraser.addEventListener('click', () => this.toggleEraser());
+
         const btnClearDraw = document.getElementById('btnClearDraw');
         if (btnClearDraw) btnClearDraw.addEventListener('click', () => this.clearAirDrawing());
 
@@ -221,6 +225,7 @@ class RetroLensApp {
             else if (key === 'm') this.toggleFaceMask();
             else if (key === 't') this.toggleTheremin();
             else if (key === 'd') this.toggleAirDrawing();
+            else if (key === 'e') this.toggleEraser();
             else if (key === 'f') this.toggleFullscreen();
             else if (e.code === 'Space') {
                 e.preventDefault();
@@ -381,6 +386,23 @@ class RetroLensApp {
         }
         this.lastDrawPt = null;
         this.playSound('beep');
+    }
+
+    toggleEraser() {
+        this.isEraser = !this.isEraser;
+        const eraserBtnText = document.getElementById('eraserBtnText');
+        if (eraserBtnText) {
+            eraserBtnText.innerText = `ERASER: ${this.isEraser ? 'ON' : 'OFF'}`;
+        }
+        if (this.isEraser) {
+            this.isAirDrawing = true;
+            const drawBtnText = document.getElementById('drawBtnText');
+            if (drawBtnText) drawBtnText.innerText = 'DRAW: ON';
+            this.gestureHint.innerText = 'AIR-ERASER ACTIVE // MOVE FINGER TO ERASE DRAWING';
+        } else {
+            this.gestureHint.innerText = 'AIR-DRAWING ACTIVE // EXTEND FINGER TO DRAW IN AIR';
+        }
+        this.playSound(this.isEraser ? 'mode' : 'beep');
     }
 
     handleSnapshotTrigger() {
@@ -985,42 +1007,69 @@ class RetroLensApp {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
                 }
 
-                // Render Swirling Rasengan Chakra Energy Orb on Palm
-                this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
+                // Render Swirling Rasengan Chakra Energy Orb on Palm (when drawing mode is OFF)
+                if (!this.isAirDrawing) {
+                    this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
+                }
 
                 // Update Theremin Synthesizer Pitch from Hand Height
                 if (this.thereminEnabled && landmarks[8]) {
                     this.updateThereminPitch(landmarks[8].y);
                 }
 
-                // Air Drawing Pen Trail Tracking (Index Fingertip #8)
+                // Air Drawing Pen & Eraser Trail Tracking (Index Fingertip #8)
                 if (this.isAirDrawing && landmarks[8]) {
                     const pt8 = [isSelfie ? (1.0 - landmarks[8].x) * w : landmarks[8].x * w, landmarks[8].y * h];
-                    if (this.lastDrawPt && this.drawingCtx) {
-                        this.drawingCtx.save();
-                        this.drawingCtx.beginPath();
-                        this.drawingCtx.moveTo(this.lastDrawPt[0], this.lastDrawPt[1]);
-                        this.drawingCtx.lineTo(pt8[0], pt8[1]);
-                        this.drawingCtx.lineWidth = 6;
-                        this.drawingCtx.lineCap = 'round';
-                        this.drawingCtx.lineJoin = 'round';
-                        this.drawingCtx.strokeStyle = '#00f2fe';
-                        this.drawingCtx.shadowColor = '#00f2fe';
-                        this.drawingCtx.shadowBlur = 14;
-                        this.drawingCtx.stroke();
-                        this.drawingCtx.restore();
-                    }
-                    this.lastDrawPt = pt8;
 
-                    // Glowing Air Nib Cursor Indicator
-                    this.ctx.save();
-                    this.ctx.beginPath();
-                    this.ctx.arc(pt8[0], pt8[1], 7, 0, Math.PI * 2);
-                    this.ctx.fillStyle = '#00f2fe';
-                    this.ctx.shadowColor = '#00f2fe';
-                    this.ctx.shadowBlur = 16;
-                    this.ctx.fill();
-                    this.ctx.restore();
+                    if (this.isEraser) {
+                        // Air Eraser Mode: Erase drawing buffer at index fingertip
+                        if (this.drawingCtx) {
+                            this.drawingCtx.save();
+                            this.drawingCtx.globalCompositeOperation = 'destination-out';
+                            this.drawingCtx.beginPath();
+                            this.drawingCtx.arc(pt8[0], pt8[1], 28, 0, Math.PI * 2);
+                            this.drawingCtx.fill();
+                            this.drawingCtx.restore();
+                        }
+
+                        // Red Glowing Eraser Cursor Circle
+                        this.ctx.save();
+                        this.ctx.beginPath();
+                        this.ctx.arc(pt8[0], pt8[1], 28, 0, Math.PI * 2);
+                        this.ctx.strokeStyle = '#ef4444';
+                        this.ctx.lineWidth = 2.5;
+                        this.ctx.shadowColor = '#ef4444';
+                        this.ctx.shadowBlur = 14;
+                        this.ctx.stroke();
+                        this.ctx.restore();
+                    } else {
+                        // Air Pen Mode: Draw glowing cyan stroke
+                        if (this.lastDrawPt && this.drawingCtx) {
+                            this.drawingCtx.save();
+                            this.drawingCtx.beginPath();
+                            this.drawingCtx.moveTo(this.lastDrawPt[0], this.lastDrawPt[1]);
+                            this.drawingCtx.lineTo(pt8[0], pt8[1]);
+                            this.drawingCtx.lineWidth = 6;
+                            this.drawingCtx.lineCap = 'round';
+                            this.drawingCtx.lineJoin = 'round';
+                            this.drawingCtx.strokeStyle = '#00f2fe';
+                            this.drawingCtx.shadowColor = '#00f2fe';
+                            this.drawingCtx.shadowBlur = 14;
+                            this.drawingCtx.stroke();
+                            this.drawingCtx.restore();
+                        }
+                        this.lastDrawPt = pt8;
+
+                        // Glowing Cyan Air Nib Cursor Indicator
+                        this.ctx.save();
+                        this.ctx.beginPath();
+                        this.ctx.arc(pt8[0], pt8[1], 7, 0, Math.PI * 2);
+                        this.ctx.fillStyle = '#00f2fe';
+                        this.ctx.shadowColor = '#00f2fe';
+                        this.ctx.shadowBlur = 16;
+                        this.ctx.fill();
+                        this.ctx.restore();
+                    }
                 }
 
                 // Check 2-Finger Gesture -> Fullscreen Blur Effect
@@ -1063,7 +1112,8 @@ class RetroLensApp {
                 this.gestureHint.innerText = `DUAL FIST // MODE SWITCH (${this.is3DMode ? '3D' : '2D'})`;
             }
 
-            if (!isTwoFingersDetected) {
+            // Skip hand portal filter rendering when Air-Drawing mode is active (Keep camera clean & clear)
+            if (!isTwoFingersDetected && !this.isAirDrawing) {
                 if (this.is3DMode) {
                     if (allHandTips.length === 2) {
                         const t1 = allHandTips[0];
