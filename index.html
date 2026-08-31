@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RetroLens — Gesture Portal Engine</title>
+    <meta name="description" content="High-performance real-time hand gesture portal filter pipeline running directly in browser.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f2fe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0'/><path d='M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6'/><path d='M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8'/><path d='M18 8a2 2 0 0 1 2 2v4a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- RetroLens Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- MediaPipe Hands CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="brand-container">
+            <div class="brand-logo-svg">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+                    <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6"/>
+                    <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+                    <path d="M18 8a2 2 0 0 1 2 2v4a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+                </svg>
+            </div>
+            <h1 class="brand-title">RETROLENS</h1>
+            <span class="brand-badge">WEB ENGINE // v1.0</span>
+        </div>
+        
+        <div class="header-actions">
+            <button id="btnHelp" class="btn btn-icon-text" title="System Documentation">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Guide</span>
+            </button>
+            <button id="btnSound" class="btn btn-icon-text" title="Audio Synthesizer Toggle">
+                <svg id="soundSvg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <span id="soundText">AUDIO ON</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main class="main-viewport">
+        <div class="canvas-container" id="viewportContainer">
+            <!-- Hidden Video Feed for MediaPipe processing -->
+            <video id="inputVideo" playsinline autoplay muted></video>
+            
+            <!-- Primary Output Canvas -->
+            <canvas id="outputCanvas" width="960" height="540"></canvas>
+
+            <!-- Real-Time HUD Layer -->
+            <div class="hud-layer">
+                <div class="hud-top">
+                    <div class="hud-pill active-mode" id="hudMode">
+                        <span class="dot-indicator"></span>
+                        <span>MODE // 2D QUAD</span>
+                    </div>
+                    <div class="hud-pill active-filter" id="hudFilter">
+                        <span class="dot-indicator cyan"></span>
+                        <span>FILTER // DUAL TONE</span>
+                    </div>
+                </div>
+
+                <div class="hud-bottom">
+                    <div class="hud-badge" id="hudFps">FPS: 60</div>
+                    <div class="gesture-hint" id="gestureHint">SPREAD HANDS TO OPEN PORTAL</div>
+                </div>
+            </div>
+
+            <!-- Loading Splash -->
+            <div class="splash-overlay" id="splashScreen">
+                <div class="spinner"></div>
+                <h2 class="splash-title">Initializing Vision Engine...</h2>
+                <p class="splash-sub">Please grant camera permissions to allow real-time gesture tracking and GPU shader rendering.</p>
+                <button id="btnStartCamera" class="btn btn-primary" style="margin-top: 10px; display: none;">Initialize Camera</button>
+            </div>
+        </div>
+
+        <!-- Controls Container -->
+        <div class="controls-container">
+            <!-- Quick Filter Selector (Horizontal Scroll) -->
+            <div class="quick-filters-scroll" id="filtersList">
+                <!-- Dynamically generated by app.js -->
+            </div>
+
+            <!-- Action Bar -->
+            <div class="action-bar">
+                <div class="btn-group">
+                    <button id="btnPrevFilter" class="btn btn-icon" title="Previous Filter (Key: P)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <button id="btnNextFilter" class="btn btn-icon" title="Next Filter (Key: N)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <button id="btnToggleMode" class="btn btn-icon-text" title="Toggle 2D / 3D Mode (Key: C)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        <span id="modeBtnText">MODE: 2D</span>
+                    </button>
+                </div>
+
+                <div class="btn-group">
+                    <button id="btnSwitchCamera" class="btn btn-icon-text" title="Switch Front/Rear Camera">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0-4.42-3.58-8-8-8s-8 3.58-8 8"/><path d="M4 14c0 4.42 3.58 8 8 8s8-3.58 8-8"/><polyline points="20 14 24 14 22 18"/><polyline points="4 10 0 10 2 6"/></svg>
+                        <span>CAM SWITCH</span>
+                    </button>
+                    <button id="btnSnapshot" class="btn btn-snap" title="Capture Image (Key: S)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span>SNAPSHOT</span>
+                    </button>
+                    <button id="btnFullscreen" class="btn btn-icon" title="Toggle Fullscreen">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Help / Guide -->
+    <div class="modal-backdrop" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Gesture Controls & System Shortcuts</h3>
+                <button class="modal-close" id="btnCloseHelp">&times;</button>
+            </div>
+
+            <div class="gesture-grid">
+                <div class="gesture-card">
+                    <div class="gesture-card-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                        <span>PORTAL ACTIVATION</span>
+                    </div>
+                    <p class="gesture-card-desc">Extend two hands in front of the camera. The polygon area bounded by fingertip landmarks acts as the active shader portal.</p>
+                </div>
+
+                <div class="gesture-card">
+                    <div class="gesture-card-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <span>PINCH FILTER CYCLING</span>
+                    </div>
+                    <p class="gesture-card-desc">Bring thumb tip and pinky tip together on either hand to trigger instant filter cycling.</p>
+                </div>
+
+                <div class="gesture-card">
+                    <div class="gesture-card-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        <span>DUAL FIST MODE SWITCH</span>
+                    </div>
+                    <p class="gesture-card-desc">Clench both hands into fists simultaneously to toggle between <strong>2D Quad</strong> and <strong>3D Dual-Mesh</strong> portal modes.</p>
+                </div>
+
+                <div class="gesture-card">
+                    <div class="gesture-card-header">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h12"/></svg>
+                        <span>KEYBOARD SHORTCUTS</span>
+                    </div>
+                    <p class="gesture-card-desc">
+                        <span class="kbd">N</span> / <span class="kbd">P</span> : Cycle Filters<br>
+                        <span class="kbd">C</span> : Toggle 2D / 3D Mode<br>
+                        <span class="kbd">S</span> : Capture Snapshot<br>
+                        <span class="kbd">F</span> : Fullscreen Viewport
+                    </p>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="btnGotIt" style="width: 100%;">ACKNOWLEDGE & START</button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <p>RETROLENS PIPELINE // CLIENT-SIDE SHADER ENGINE & HAND LANDMARK TRACKING</p>
+    </footer>
+
+    <!-- Main Logic Module -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
