@@ -36,6 +36,31 @@ export class GeometryUtils {
     }
 
     /**
+     * Check if hand is making a Victory / Peace Sign (✌️)
+     * Index & Middle fingers extended, Ring & Pinky curled
+     */
+    static isPeaceSign(landmarks) {
+        if (!landmarks || landmarks.length < 21) return false;
+
+        const indexTip = landmarks[8].y;
+        const indexPip = landmarks[6].y;
+        const middleTip = landmarks[12].y;
+        const middlePip = landmarks[10].y;
+
+        const ringTip = landmarks[16].y;
+        const ringPip = landmarks[14].y;
+        const pinkyTip = landmarks[20].y;
+        const pinkyPip = landmarks[18].y;
+
+        const indexExtended = indexTip < indexPip;
+        const middleExtended = middleTip < middlePip;
+        const ringCurled = ringTip > ringPip;
+        const pinkyCurled = pinkyTip > pinkyPip;
+
+        return indexExtended && middleExtended && ringCurled && pinkyCurled;
+    }
+
+    /**
      * Check if hand is significantly rotated (tilted)
      */
     static isHandRotated(thumb, index) {

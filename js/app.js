@@ -1,5 +1,5 @@
 /**
- * RetroLens - Main Web Application & MediaPipe Pipeline (Mobile & Desktop Ultra-Performance)
+ * RetroLens Studio Pro - Main Web Application & MediaPipe Pipeline
  */
 
 import { GeometryUtils } from './geometry.js';
@@ -18,13 +18,14 @@ class RetroLensApp {
         // Mobile Device Detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-        // Default Config (Full HD 1080p Stream Support)
+        // Default Config (Full HD Stream Support)
         this.config = {
             width: 1280,
             height: 720,
             pinchThresholdPx: this.isMobile ? 40.0 : 50.0,
             filterCooldownMs: 250,
             modeCooldownMs: 1200,
+            gestureCooldownMs: 1500,
             fistDistThresholdPx: 85.0,
         };
 
@@ -41,6 +42,8 @@ class RetroLensApp {
         this.is3DMode = false;
         this.soundEnabled = true;
         this.facingMode = 'user'; // 'user' (selfie) or 'environment' (rear camera)
+        this.isMirrored = true;   // Selfie Mirror Toggle
+        this.isFrozen = false;     // Freeze / Pause Frame Toggle
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
@@ -56,8 +59,12 @@ class RetroLensApp {
         this.recDurationSec = 0;
         this.recTimerInterval = null;
 
+        // In-App Media Gallery State
+        this.galleryItems = [];
+
         this.lastFilterSwitchTime = 0;
         this.lastModeToggleTime = 0;
+        this.lastGestureTime = 0;
 
         // FPS calculation
         this.fps = 60;
@@ -91,6 +98,7 @@ class RetroLensApp {
         this.hudFilter = document.getElementById('hudFilter');
         this.hudFps = document.getElementById('hudFps');
         this.hudRec = document.getElementById('hudRec');
+        this.freezePill = document.getElementById('freezePill');
         this.recTimerText = document.getElementById('recTimerText');
         this.gestureHint = document.getElementById('gestureHint');
         this.splashScreen = document.getElementById('splashScreen');
@@ -99,6 +107,7 @@ class RetroLensApp {
         
         this.timerOverlay = document.getElementById('timerOverlay');
         this.timerNumber = document.getElementById('timerNumber');
+        this.galleryCountBadge = document.getElementById('galleryCountBadge');
 
         this.renderFilterButtons();
 
@@ -117,12 +126,22 @@ class RetroLensApp {
         document.getElementById('btnNextFilter').addEventListener('click', () => this.cycleFilter(1));
         document.getElementById('btnToggleMode').addEventListener('click', () => this.toggleMode());
         document.getElementById('btnSwitchCamera').addEventListener('click', () => this.switchCamera());
+        document.getElementById('btnMirror').addEventListener('click', () => this.toggleMirror());
+        document.getElementById('btnFreeze').addEventListener('click', () => this.toggleFreeze());
         document.getElementById('btnFullscreen').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('btnSound').addEventListener('click', () => this.toggleSound());
-        
+
         if (this.btnStartCamera) {
             this.btnStartCamera.addEventListener('click', () => this.startCamera());
         }
+
+        // Gallery Modal
+        const galleryModal = document.getElementById('galleryModal');
+        document.getElementById('btnGallery').addEventListener('click', () => {
+            this.renderGalleryModal();
+            galleryModal.classList.add('open');
+        });
+        document.getElementById('btnCloseGallery').addEventListener('click', () => galleryModal.classList.remove('open'));
 
         // Help Modal
         const helpModal = document.getElementById('helpModal');
@@ -167,6 +186,10 @@ class RetroLensApp {
             else if (key === 'r') this.toggleRecording();
             else if (key === 's') this.handleSnapshotTrigger();
             else if (key === 'f') this.toggleFullscreen();
+            else if (e.code === 'Space') {
+                e.preventDefault();
+                this.toggleFreeze();
+            }
         });
 
         this.updateCanvasDimensions(this.config.width, this.config.height);
@@ -224,6 +247,26 @@ class RetroLensApp {
             this.hudMode.style.borderColor = 'var(--neon-amber)';
             this.hudMode.style.color = 'var(--neon-amber)';
             modeBtn.innerText = 'MODE: 2D';
+        }
+        this.playSound('mode');
+    }
+
+    toggleMirror() {
+        this.isMirrored = !this.isMirrored;
+        const mirrorBtn = document.getElementById('mirrorBtnText');
+        mirrorBtn.innerText = `MIRROR: ${this.isMirrored ? 'ON' : 'OFF'}`;
+        this.playSound('filter');
+    }
+
+    toggleFreeze() {
+        this.isFrozen = !this.isFrozen;
+        const freezeBtn = document.getElementById('freezeBtnText');
+        if (this.isFrozen) {
+            this.freezePill.style.display = 'inline-flex';
+            freezeBtn.innerText = 'UNFREEZE';
+        } else {
+            this.freezePill.style.display = 'none';
+            freezeBtn.innerText = 'FREEZE';
         }
         this.playSound('mode');
     }
@@ -352,17 +395,98 @@ class RetroLensApp {
         
         const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `RetroLens_Video_${timestamp}.${ext}`;
+        
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = `RetroLens_Video_${timestamp}.${ext}`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
 
+        // Add to In-App Media Gallery
+        this.addMediaToGallery({
+            id: Date.now(),
+            type: 'video',
+            url: url,
+            filename: filename,
+            timeStr: new Date().toLocaleTimeString()
+        });
+
         setTimeout(() => {
             document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
         }, 100);
+    }
+
+    takeSnapshot() {
+        this.playSound('snap');
+        const container = document.getElementById('viewportContainer');
+        container.classList.add('flash-effect');
+        setTimeout(() => container.classList.remove('flash-effect'), 350);
+
+        const dataUrl = this.canvas.toDataURL('image/png');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `RetroLens_${timestamp}.png`;
+
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+
+        // Add to In-App Media Gallery
+        this.addMediaToGallery({
+            id: Date.now(),
+            type: 'image',
+            url: dataUrl,
+            filename: filename,
+            timeStr: new Date().toLocaleTimeString()
+        });
+    }
+
+    addMediaToGallery(item) {
+        this.galleryItems.unshift(item);
+        this.galleryCountBadge.innerText = this.galleryItems.length;
+        this.galleryCountBadge.style.display = 'inline-block';
+    }
+
+    renderGalleryModal() {
+        const grid = document.getElementById('galleryGrid');
+        grid.innerHTML = '';
+
+        if (this.galleryItems.length === 0) {
+            grid.innerHTML = '<p class="empty-gallery-msg">No media captures saved in this session yet. Take a snapshot or record a video!</p>';
+            return;
+        }
+
+        this.galleryItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'gallery-card-item';
+
+            let mediaElem = item.type === 'video' 
+                ? `<video src="${item.url}" class="gallery-thumb" controls></video>`
+                : `<img src="${item.url}" class="gallery-thumb" alt="Snapshot">`;
+
+            card.innerHTML = `
+                ${mediaElem}
+                <div class="gallery-card-info">
+                    <span class="gallery-type">${item.type.toUpperCase()} // ${item.timeStr}</span>
+                    <div class="gallery-card-actions">
+                        <a href="${item.url}" download="${item.filename}" class="btn btn-primary btn-sm">RE-SAVE</a>
+                        <button class="btn btn-sm btn-delete-item" data-id="${item.id}" style="background:#ef4444; border:none; color:#fff;">DELETE</button>
+                    </div>
+                </div>
+            `;
+
+            card.querySelector('.btn-delete-item').addEventListener('click', (e) => {
+                const id = parseInt(e.target.getAttribute('data-id'), 10);
+                this.galleryItems = this.galleryItems.filter(i => i.id !== id);
+                this.galleryCountBadge.innerText = this.galleryItems.length;
+                if (this.galleryItems.length === 0) this.galleryCountBadge.style.display = 'none';
+                this.renderGalleryModal();
+            });
+
+            grid.appendChild(card);
+        });
     }
 
     initAudio() {
@@ -460,20 +584,6 @@ class RetroLensApp {
         await this.startCamera();
     }
 
-    takeSnapshot() {
-        this.playSound('snap');
-        const container = document.getElementById('viewportContainer');
-        container.classList.add('flash-effect');
-        setTimeout(() => container.classList.remove('flash-effect'), 350);
-
-        const dataUrl = this.canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        link.download = `RetroLens_${timestamp}.png`;
-        link.href = dataUrl;
-        link.click();
-    }
-
     initMediaPipe() {
         if (!window.Hands) {
             console.error('MediaPipe Hands library not loaded');
@@ -501,7 +611,7 @@ class RetroLensApp {
         try {
             if (this.btnStartCamera) this.btnStartCamera.style.display = 'none';
 
-            // High Definition (Full HD 1080p / 720p) Camera Request
+            // High Definition Camera Request
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
@@ -520,7 +630,6 @@ class RetroLensApp {
                 };
             });
 
-            // Set canvas dynamically to native camera hardware resolution (e.g. 1920x1080 or 1280x720)
             const vw = this.video.videoWidth || 1280;
             const vh = this.video.videoHeight || 720;
             this.updateCanvasDimensions(vw, vh);
@@ -558,9 +667,9 @@ class RetroLensApp {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        if (this.video.readyState >= 2 && !this.video.paused && !this.video.ended) {
+        if (!this.isFrozen && this.video.readyState >= 2 && !this.video.paused && !this.video.ended) {
             this.ctx.save();
-            if (this.facingMode === 'user') {
+            if (this.isMirrored && this.facingMode === 'user') {
                 this.ctx.scale(-1, 1);
                 this.ctx.drawImage(this.video, -w, 0, w, h);
             } else {
@@ -605,12 +714,21 @@ class RetroLensApp {
         const allHandTips = [];
         let fistCount = 0;
         const currentTime = performance.now();
-        const isSelfie = (this.facingMode === 'user');
+        const isSelfie = (this.isMirrored && this.facingMode === 'user');
 
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             for (const landmarks of results.multiHandLandmarks) {
                 if (this.settings.showSkeleton) {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
+                }
+
+                // Peace Sign Gesture Recognition (✌️) -> Auto Snapshot
+                if (GeometryUtils.isPeaceSign(landmarks)) {
+                    if (currentTime - this.lastGestureTime > this.config.gestureCooldownMs) {
+                        this.lastGestureTime = currentTime;
+                        this.gestureHint.innerText = 'PEACE SIGN DETECTED // SNAPSHOT TIMER';
+                        this.handleSnapshotTrigger();
+                    }
                 }
 
                 const tips = [4, 8, 12, 16, 20].map(idx => [
