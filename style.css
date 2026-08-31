@@ -144,12 +144,13 @@ body {
     margin: 0 auto;
 }
 
-/* Aspect-Ratio Protected Canvas Container */
+/* Natural 100% Un-squished Canvas Container */
 .canvas-container {
     position: relative;
-    width: 100%;
-    max-width: 960px;
-    aspect-ratio: 16 / 9;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 60vh;
     background: #000;
     border-radius: var(--radius-md);
     overflow: hidden;
@@ -158,11 +159,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin: 0 auto;
 }
 
 #outputCanvas {
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 60vh;
     object-fit: contain;
     display: block;
 }
@@ -803,7 +807,7 @@ body {
     border-top: 1px solid var(--border-subtle);
 }
 
-/* Mobile Responsive Adjustments (FORCED PORTRAIT VERTICAL CAMERA) */
+/* Mobile Responsive Adjustments (NATURAL 100% UN-SQUISHED ASPECT RATIO) */
 @media (max-width: 768px) {
     .app-header {
         padding: 10px 14px;
@@ -812,17 +816,18 @@ body {
         font-size: 14px;
     }
     .canvas-container {
-        width: 100%;
-        max-width: 360px;
-        aspect-ratio: 9 / 16 !important;
+        width: auto;
         height: auto;
-        max-height: 52vh;
+        max-width: 100%;
+        max-height: 55vh;
         margin: 0 auto;
     }
     #outputCanvas {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 55vh;
+        object-fit: contain;
     }
     .action-bar {
         padding: 8px;
