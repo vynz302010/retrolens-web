@@ -48,7 +48,7 @@ class RetroLensApp {
         this.facingMode = 'user';     // 'user' (selfie) or 'environment' (rear camera)
         this.isMirrored = true;       // Selfie Mirror Toggle
         this.isFrozen = false;         // Freeze / Pause Frame Toggle
-        this.showFaceMask = true;      // AI Face Mesh Cyber Hologram Mask Toggle
+        this.showFaceMask = !this.isMobile;      // AI Face Mesh Cyber Hologram Mask Toggle (Off by default on mobile for 60 FPS)
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
@@ -777,11 +777,21 @@ class RetroLensApp {
             }
 
             this.aiFrameSkip++;
-            if (!this.isProcessing && (this.aiFrameSkip % (this.isMobile ? 2 : 1) === 0)) {
+            const skipRate = this.isMobile ? 3 : 1;
+            if (!this.isProcessing && (this.aiFrameSkip % skipRate === 0)) {
                 this.isProcessing = true;
                 try {
-                    if (this.hands) await this.hands.send({ image: this.video });
-                    if (this.showFaceMask && this.faceMesh) await this.faceMesh.send({ image: this.video });
+                    if (this.isMobile) {
+                        // Stagger AI inferences on mobile to eliminate CPU throttling
+                        if (this.aiFrameSkip % (skipRate * 2) === 0 && this.showFaceMask && this.faceMesh) {
+                            await this.faceMesh.send({ image: this.video });
+                        } else if (this.hands) {
+                            await this.hands.send({ image: this.video });
+                        }
+                    } else {
+                        if (this.hands) await this.hands.send({ image: this.video });
+                        if (this.showFaceMask && this.faceMesh) await this.faceMesh.send({ image: this.video });
+                    }
                 } catch (e) {
                     console.error('MediaPipe frame processing error:', e);
                 }
