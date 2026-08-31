@@ -934,6 +934,9 @@ class RetroLensApp {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
                 }
 
+                // Render Swirling Rasengan Chakra Energy Orb on Palm
+                this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
+
                 // Update Theremin Synthesizer Pitch from Hand Height
                 if (this.thereminEnabled && landmarks[8]) {
                     this.updateThereminPitch(landmarks[8].y);
@@ -1202,9 +1205,100 @@ class RetroLensApp {
                 return FilterBank.cartoon(imageData, width, height);
             case 'rainbow-wave':
                 return FilterBank.rainbowWave(imageData, width, height, timeSec);
+            case 'rasengan':
+                return FilterBank.rasengan(imageData, width, height, timeSec);
             default:
                 return imageData;
         }
+    }
+
+    drawRasenganEnergyOrb(landmarks, w, h, isSelfie) {
+        const timeSec = performance.now() / 1000;
+
+        // Compute Palm Center (between wrist landmark 0 and middle MCP landmark 9)
+        const p0 = [isSelfie ? (1.0 - landmarks[0].x) * w : landmarks[0].x * w, landmarks[0].y * h];
+        const p9 = [isSelfie ? (1.0 - landmarks[9].x) * w : landmarks[9].x * w, landmarks[9].y * h];
+
+        const cx = (p0[0] + p9[0]) / 2;
+        const cy = (p0[1] + p9[1]) / 2;
+        const handDist = GeometryUtils.euclideanDist(p0, p9);
+        const radius = Math.max(32, Math.min(110, handDist * 0.75));
+
+        this.ctx.save();
+
+        // 1. Swirling Outer Blue/Cyan Aura Field
+        const auraGrad = this.ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius * 1.6);
+        auraGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        auraGrad.addColorStop(0.3, 'rgba(0, 242, 254, 0.85)');
+        auraGrad.addColorStop(0.7, 'rgba(14, 165, 233, 0.45)');
+        auraGrad.addColorStop(1, 'rgba(0, 242, 254, 0)');
+
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, radius * 1.6, 0, Math.PI * 2);
+        this.ctx.fillStyle = auraGrad;
+        this.ctx.shadowColor = '#00f2fe';
+        this.ctx.shadowBlur = 30;
+        this.ctx.fill();
+
+        // 2. High-Speed Rotating Chakra Spiral Energy Arcs
+        const spiralCount = 8;
+        const speed = timeSec * 18.0;
+
+        for (let i = 0; i < spiralCount; i++) {
+            const baseAngle = (i * Math.PI * 2) / spiralCount + speed;
+            this.ctx.beginPath();
+            this.ctx.lineWidth = Math.random() * 2.2 + 1.5;
+            this.ctx.strokeStyle = i % 2 === 0 ? '#ffffff' : '#38bdf8';
+            this.ctx.shadowColor = '#00f2fe';
+            this.ctx.shadowBlur = 15;
+
+            for (let step = 1; step <= 25; step++) {
+                const t = step / 25;
+                const r = t * radius * 1.25;
+                const angle = baseAngle + t * 4.8;
+                const x = cx + Math.cos(angle) * r;
+                const y = cy + Math.sin(angle) * r;
+
+                if (step === 1) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            this.ctx.stroke();
+        }
+
+        // 3. Dense Pure White Concentrated Core Sphere
+        const coreGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.5);
+        coreGrad.addColorStop(0, '#ffffff');
+        coreGrad.addColorStop(0.5, '#e0f2fe');
+        coreGrad.addColorStop(1, 'rgba(56, 189, 248, 0.85)');
+
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, radius * 0.48, 0, Math.PI * 2);
+        this.ctx.fillStyle = coreGrad;
+        this.ctx.shadowColor = '#ffffff';
+        this.ctx.shadowBlur = 25;
+        this.ctx.fill();
+
+        // 4. Electric Chakra Plasma Lightning Sparks
+        this.ctx.lineWidth = 1.8;
+        this.ctx.strokeStyle = '#60a5fa';
+        for (let j = 0; j < 4; j++) {
+            const boltAngle = Math.random() * Math.PI * 2;
+            const boltLen = radius * (1.1 + Math.random() * 0.4);
+            this.ctx.beginPath();
+            this.ctx.moveTo(cx, cy);
+            const midX = cx + Math.cos(boltAngle) * (boltLen * 0.5) + (Math.random() - 0.5) * 14;
+            const midY = cy + Math.sin(boltAngle) * (boltLen * 0.5) + (Math.random() - 0.5) * 14;
+            const endX = cx + Math.cos(boltAngle) * boltLen;
+            const endY = cy + Math.sin(boltAngle) * boltLen;
+            this.ctx.lineTo(midX, midY);
+            this.ctx.lineTo(endX, endY);
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
     }
 
     drawHandSkeleton(landmarks, w, h, isSelfie) {

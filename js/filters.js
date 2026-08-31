@@ -434,6 +434,47 @@ export class FilterBank {
         }
         return imageData;
     }
+
+    static rasengan(imageData, width, height, timeSec) {
+        const d = imageData.data;
+        const cx = width / 2;
+        const cy = height / 2;
+        const maxR = Math.min(width, height) * 0.48;
+
+        for (let y = 0; y < height; y++) {
+            const dy = y - cy;
+            const rowOffset = y * width;
+            for (let x = 0; x < width; x++) {
+                const dx = x - cx;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > maxR) continue;
+
+                const normDist = dist / maxR;
+                const angle = Math.atan2(dy, dx) + (1.0 - normDist) * 14.0 - timeSec * 18.0;
+
+                const spiralPattern = Math.sin(angle * 5) * 0.5 + 0.5;
+                const coreGlow = Math.pow(1.0 - normDist, 2.0);
+                const outerRing = Math.sin(normDist * Math.PI) * 0.6;
+
+                const idx = (rowOffset + x) * 4;
+                const origR = d[idx];
+                const origG = d[idx + 1];
+                const origB = d[idx + 2];
+
+                // Electric Cyan & Pure White Chakra Energy Colors
+                const chR = Math.min(255, (coreGlow * 220 + spiralPattern * 40 + outerRing * 30));
+                const chG = Math.min(255, (coreGlow * 255 + spiralPattern * 180 + outerRing * 210));
+                const chB = Math.min(255, (coreGlow * 255 + spiralPattern * 255 + outerRing * 255));
+
+                const blend = Math.min(1.0, coreGlow * 0.9 + spiralPattern * 0.35 + outerRing * 0.2);
+
+                d[idx] = (origR * (1 - blend) + chR * blend) | 0;
+                d[idx + 1] = (origG * (1 - blend) + chG * blend) | 0;
+                d[idx + 2] = (origB * (1 - blend) + chB * blend) | 0;
+            }
+        }
+        return imageData;
+    }
 }
 
 // Clean, professional filter list with technical codes
@@ -453,4 +494,5 @@ export const FILTERS_LIST = [
     { id: "blur", name: "Gaussian", code: "GB-13", desc: "Convolution Box Blur" },
     { id: "cartoon", name: "Posterize", code: "PR-14", desc: "Quantized Comic Lines" },
     { id: "rainbow-wave", name: "Spectrum", code: "SW-15", desc: "Dynamic Sine HSV Wave" },
+    { id: "rasengan", name: "Rasengan", code: "RS-16", desc: "Spiral Chakra Energy Orb" },
 ];
