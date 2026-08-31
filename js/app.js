@@ -1,5 +1,6 @@
 /**
  * RetroLens Studio Pro - Main Web Application & MediaPipe Pipeline
+ * Ultra 60 FPS Optimized Engine (Adaptive Canvas & Zero-GC Shaders)
  */
 
 import { GeometryUtils } from './geometry.js';
@@ -18,10 +19,10 @@ class RetroLensApp {
         // Mobile Device Detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-        // Default Config (Full HD Stream Support)
+        // Default Config (Ultra-Smooth 60 FPS Processing Resolution)
         this.config = {
-            width: 1280,
-            height: 720,
+            width: this.isMobile ? 640 : 960,
+            height: this.isMobile ? 360 : 540,
             pinchThresholdPx: this.isMobile ? 40.0 : 50.0,
             filterCooldownMs: 250,
             modeCooldownMs: 1200,
@@ -47,6 +48,7 @@ class RetroLensApp {
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
+        this.aiFrameSkip = 0;
 
         // Snapshot Countdown Timer State
         this.isCountingDown = false;
@@ -404,7 +406,6 @@ class RetroLensApp {
         document.body.appendChild(a);
         a.click();
 
-        // Add to In-App Media Gallery
         this.addMediaToGallery({
             id: Date.now(),
             type: 'video',
@@ -433,7 +434,6 @@ class RetroLensApp {
         link.href = dataUrl;
         link.click();
 
-        // Add to In-App Media Gallery
         this.addMediaToGallery({
             id: Date.now(),
             type: 'image',
@@ -598,8 +598,8 @@ class RetroLensApp {
         this.hands.setOptions({
             maxNumHands: 2,
             modelComplexity: this.isMobile ? 0 : 1,
-            minDetectionConfidence: 0.65,
-            minTrackingConfidence: 0.65
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
         });
 
         this.hands.onResults((results) => this.onHandResults(results));
@@ -611,12 +611,12 @@ class RetroLensApp {
         try {
             if (this.btnStartCamera) this.btnStartCamera.style.display = 'none';
 
-            // High Definition Camera Request
+            // High Performance Camera Stream Request
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
-                    width: { ideal: 1920, min: 1280 },
-                    height: { ideal: 1080, min: 720 }
+                    width: { ideal: this.isMobile ? 854 : 1280 },
+                    height: { ideal: this.isMobile ? 480 : 720 }
                 },
                 audio: false
             };
@@ -630,8 +630,9 @@ class RetroLensApp {
                 };
             });
 
-            const vw = this.video.videoWidth || 1280;
-            const vh = this.video.videoHeight || 720;
+            // Set canvas processing resolution for 60 FPS performance
+            const vw = this.isMobile ? 640 : 960;
+            const vh = this.isMobile ? 360 : 540;
             this.updateCanvasDimensions(vw, vh);
 
             this.splashScreen.style.display = 'none';
@@ -680,7 +681,8 @@ class RetroLensApp {
 
             this.renderLandmarksAndPortal(w, h);
 
-            if (!this.isProcessing && this.hands) {
+            this.aiFrameSkip++;
+            if (!this.isProcessing && this.hands && (this.aiFrameSkip % (this.isMobile ? 2 : 1) === 0)) {
                 this.isProcessing = true;
                 try {
                     await this.hands.send({ image: this.video });
