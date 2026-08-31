@@ -733,6 +733,8 @@ class RetroLensApp {
                 return FilterBank.cyberScan(imageData, width, height, timeSec);
             case 'vhs-tape':
                 return FilterBank.vhsTape(imageData, width, height, timeSec);
+            case 'sepia':
+                return FilterBank.sepia(imageData);
             case 'invert':
                 return FilterBank.invert(imageData);
             case 'red-channel':

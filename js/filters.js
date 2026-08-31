@@ -1,5 +1,5 @@
 /**
- * RetroLens - High-Performance Filter & Shader Engine (15 Shaders)
+ * RetroLens - High-Performance Filter & Shader Engine (16 Shaders)
  */
 
 let grayBuffer = new Uint8Array(960 * 540);
@@ -197,6 +197,18 @@ export class FilterBank {
         return imageData;
     }
 
+    static sepia(imageData) {
+        const d = imageData.data;
+        const len = d.length;
+        for (let i = 0; i < len; i += 4) {
+            const r = d[i], g = d[i + 1], b = d[i + 2];
+            d[i] = Math.min(255, (r * 0.393 + g * 0.769 + b * 0.189)) | 0;
+            d[i + 1] = Math.min(255, (r * 0.349 + g * 0.686 + b * 0.168)) | 0;
+            d[i + 2] = Math.min(255, (r * 0.272 + g * 0.534 + b * 0.131)) | 0;
+        }
+        return imageData;
+    }
+
     static invert(imageData) {
         const d = imageData.data;
         const len = d.length;
@@ -341,11 +353,6 @@ export class FilterBank {
         return imageData;
     }
 
-    // NEW ADVANCED SHADERS
-
-    /**
-     * Matrix Rain Code: Falling digital rain code overlay
-     */
     static matrixRain(imageData, width, height, timeSec) {
         const d = imageData.data;
         const t = (timeSec * 12) | 0;
@@ -372,9 +379,6 @@ export class FilterBank {
         return imageData;
     }
 
-    /**
-     * Cyber Scan: Holographic Grid & Pulsing Scanline
-     */
     static cyberScan(imageData, width, height, timeSec) {
         const d = imageData.data;
         const scanY = ((timeSec * 180) % height) | 0;
@@ -406,9 +410,6 @@ export class FilterBank {
         return imageData;
     }
 
-    /**
-     * VHS Tape Retro: Chromatic Aberration & Scan Lines
-     */
     static vhsTape(imageData, width, height, timeSec) {
         const d = imageData.data;
         const totalPixels = width * height;
@@ -445,10 +446,11 @@ export const FILTERS_LIST = [
     { id: "matrix", name: "Matrix", code: "MX-06", desc: "Digital Rain Code Shader" },
     { id: "cyber-scan", name: "Cyber Scan", code: "CS-07", desc: "Holographic Grid Scanline" },
     { id: "vhs-tape", name: "VHS Retro", code: "VH-08", desc: "Tape Chromatic Distortion" },
-    { id: "invert", name: "Invert", code: "IV-09", desc: "Inverted Luminance" },
-    { id: "red-channel", name: "Red Pass", code: "RP-10", desc: "Monochrome Red Isolator" },
-    { id: "edge", name: "Edge Neon", code: "EN-11", desc: "Sobel Vector Gradient" },
-    { id: "blur", name: "Gaussian", code: "GB-12", desc: "Convolution Box Blur" },
-    { id: "cartoon", name: "Posterize", code: "PR-13", desc: "Quantized Comic Lines" },
-    { id: "rainbow-wave", name: "Spectrum", code: "SW-14", desc: "Dynamic Sine HSV Wave" },
+    { id: "sepia", name: "Sepia 70s", code: "SP-09", desc: "Analog Warm Sepia Tone" },
+    { id: "invert", name: "Invert", code: "IV-10", desc: "Inverted Luminance" },
+    { id: "red-channel", name: "Red Pass", code: "RP-11", desc: "Monochrome Red Isolator" },
+    { id: "edge", name: "Edge Neon", code: "EN-12", desc: "Sobel Vector Gradient" },
+    { id: "blur", name: "Gaussian", code: "GB-13", desc: "Convolution Box Blur" },
+    { id: "cartoon", name: "Posterize", code: "PR-14", desc: "Quantized Comic Lines" },
+    { id: "rainbow-wave", name: "Spectrum", code: "SW-15", desc: "Dynamic Sine HSV Wave" },
 ];
