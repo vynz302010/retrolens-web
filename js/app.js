@@ -1,6 +1,6 @@
 /**
  * RetroLens Studio Pro - Main Web Application & MediaPipe Pipeline
- * Ultra 60 FPS Optimized Engine (Native 1:1 Un-squished Stream Dimensions)
+ * Ultra 60 FPS Optimized Engine (Native Stream Aspect, Plasma Electric Arcs & AI Face Hologram Mask)
  */
 
 import { GeometryUtils } from './geometry.js';
@@ -45,7 +45,7 @@ class RetroLensApp {
         this.facingMode = 'user'; // 'user' (selfie) or 'environment' (rear camera)
         this.isMirrored = true;   // Selfie Mirror Toggle
         this.isFrozen = false;     // Freeze / Pause Frame Toggle
-        this.isFullscreenBlur = false; // 2-Finger Fullscreen Blur State
+        this.showFaceMask = true;  // AI Face Mesh Cyber Hologram Mask Toggle
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
@@ -74,14 +74,16 @@ class RetroLensApp {
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
 
-        // Store latest hand results for continuous rendering
+        // Store latest hand & face results for continuous rendering
         this.latestResults = null;
+        this.latestFaceResults = null;
 
         // Web Audio Context
         this.audioCtx = null;
 
-        // MediaPipe Hands instance
+        // MediaPipe Instances
         this.hands = null;
+        this.faceMesh = null;
 
         this.initDOM();
         this.initAudio();
@@ -131,6 +133,7 @@ class RetroLensApp {
         document.getElementById('btnSwitchCamera').addEventListener('click', () => this.switchCamera());
         document.getElementById('btnMirror').addEventListener('click', () => this.toggleMirror());
         document.getElementById('btnFreeze').addEventListener('click', () => this.toggleFreeze());
+        document.getElementById('btnMask').addEventListener('click', () => this.toggleFaceMask());
         document.getElementById('btnFullscreen').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('btnSound').addEventListener('click', () => this.toggleSound());
 
@@ -188,6 +191,7 @@ class RetroLensApp {
             else if (key === 'c') this.toggleMode();
             else if (key === 'r') this.toggleRecording();
             else if (key === 's') this.handleSnapshotTrigger();
+            else if (key === 'm') this.toggleFaceMask();
             else if (key === 'f') this.toggleFullscreen();
             else if (e.code === 'Space') {
                 e.preventDefault();
@@ -270,6 +274,15 @@ class RetroLensApp {
         } else {
             this.freezePill.style.display = 'none';
             freezeBtn.innerText = 'FREEZE';
+        }
+        this.playSound('mode');
+    }
+
+    toggleFaceMask() {
+        this.showFaceMask = !this.showFaceMask;
+        const maskBtnText = document.getElementById('maskBtnText');
+        if (maskBtnText) {
+            maskBtnText.innerText = `MASK: ${this.showFaceMask ? 'ON' : 'OFF'}`;
         }
         this.playSound('mode');
     }
@@ -592,6 +605,7 @@ class RetroLensApp {
             return;
         }
 
+        // Initialize Hands Tracker
         this.hands = new window.Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
         });
@@ -604,6 +618,22 @@ class RetroLensApp {
         });
 
         this.hands.onResults((results) => this.onHandResults(results));
+
+        // Initialize Face Mesh Tracker for AI Hologram Mask
+        if (window.FaceMesh) {
+            this.faceMesh = new window.FaceMesh({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633709500/${file}`
+            });
+            this.faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            this.faceMesh.onResults((results) => {
+                this.latestFaceResults = results;
+            });
+        }
 
         this.startCamera();
     }
@@ -687,13 +717,20 @@ class RetroLensApp {
             }
             this.ctx.restore();
 
+            // Render AI Cyber Hologram Mask if enabled
+            if (this.showFaceMask) {
+                this.renderFaceHologramMask(rawVw, rawVh);
+            }
+
+            // Render Hand Portal Filters
             this.renderLandmarksAndPortal(rawVw, rawVh);
 
             this.aiFrameSkip++;
-            if (!this.isProcessing && this.hands && (this.aiFrameSkip % (this.isMobile ? 2 : 1) === 0)) {
+            if (!this.isProcessing && (this.aiFrameSkip % (this.isMobile ? 2 : 1) === 0)) {
                 this.isProcessing = true;
                 try {
-                    await this.hands.send({ image: this.video });
+                    if (this.hands) await this.hands.send({ image: this.video });
+                    if (this.showFaceMask && this.faceMesh) await this.faceMesh.send({ image: this.video });
                 } catch (e) {
                     console.error('MediaPipe frame processing error:', e);
                 }
@@ -715,6 +752,89 @@ class RetroLensApp {
 
     onHandResults(results) {
         this.latestResults = results;
+    }
+
+    renderFaceHologramMask(w, h) {
+        const results = this.latestFaceResults;
+        if (!results || !results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+
+        const landmarks = results.multiFaceLandmarks[0];
+        const isSelfie = (this.isMirrored && this.facingMode === 'user');
+
+        const getPt = (idx) => [
+            isSelfie ? (1.0 - landmarks[idx].x) * w : landmarks[idx].x * w,
+            landmarks[idx].y * h
+        ];
+
+        this.ctx.save();
+
+        // 1. Cyber Goggles / Visor (Eyebrow & Bridge Contour)
+        const visorIndices = [70, 63, 105, 66, 107, 336, 296, 334, 293, 300, 168, 6, 197, 195, 5];
+        this.ctx.beginPath();
+        const p0 = getPt(visorIndices[0]);
+        this.ctx.moveTo(p0[0], p0[1]);
+        for (let i = 1; i < visorIndices.length; i++) {
+            const p = getPt(visorIndices[i]);
+            this.ctx.lineTo(p[0], p[1]);
+        }
+        this.ctx.closePath();
+        this.ctx.fillStyle = 'rgba(0, 242, 254, 0.15)';
+        this.ctx.fill();
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeStyle = '#00f2fe';
+        this.ctx.shadowColor = '#00f2fe';
+        this.ctx.shadowBlur = 12;
+        this.ctx.stroke();
+
+        // 2. Left & Right Eye Cyber Targets
+        const leftEyeIndices = [33, 133, 159, 145];
+        const rightEyeIndices = [362, 263, 386, 374];
+
+        for (const eyeSet of [leftEyeIndices, rightEyeIndices]) {
+            this.ctx.beginPath();
+            const ep0 = getPt(eyeSet[0]);
+            this.ctx.moveTo(ep0[0], ep0[1]);
+            for (let i = 1; i < eyeSet.length; i++) {
+                const ep = getPt(eyeSet[i]);
+                this.ctx.lineTo(ep[0], ep[1]);
+            }
+            this.ctx.closePath();
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeStyle = '#ec4899';
+            this.ctx.shadowColor = '#ec4899';
+            this.ctx.shadowBlur = 10;
+            this.ctx.stroke();
+        }
+
+        // 3. Forehead Reticle Target Lock
+        const forehead = getPt(10);
+        this.ctx.beginPath();
+        this.ctx.arc(forehead[0], forehead[1] - 15, 14, 0, Math.PI * 2);
+        this.ctx.strokeStyle = '#f59e0b';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.shadowColor = '#f59e0b';
+        this.ctx.shadowBlur = 10;
+        this.ctx.stroke();
+
+        // Crosshair ticks
+        this.ctx.beginPath();
+        this.ctx.moveTo(forehead[0] - 20, forehead[1] - 15);
+        this.ctx.lineTo(forehead[0] - 10, forehead[1] - 15);
+        this.ctx.moveTo(forehead[0] + 10, forehead[1] - 15);
+        this.ctx.lineTo(forehead[0] + 20, forehead[1] - 15);
+        this.ctx.moveTo(forehead[0], forehead[1] - 35);
+        this.ctx.lineTo(forehead[0], forehead[1] - 25);
+        this.ctx.moveTo(forehead[0], forehead[1] - 5);
+        this.ctx.lineTo(forehead[0], forehead[1] + 5);
+        this.ctx.stroke();
+
+        // Hologram HUD Text
+        this.ctx.font = '10px "JetBrains Mono", monospace';
+        this.ctx.fillStyle = '#00f2fe';
+        this.ctx.shadowBlur = 8;
+        this.ctx.fillText('[ TARGET LOCKED ]', forehead[0] - 45, forehead[1] - 38);
+
+        this.ctx.restore();
     }
 
     renderLandmarksAndPortal(w, h) {
@@ -851,8 +971,14 @@ class RetroLensApp {
         );
         this.ctx.restore();
 
-        // Custom Border Glow & Width
+        // Render Plasma Spark & Electric Edge FX
+        this.drawPlasmaElectricBorder(pts);
+    }
+
+    drawPlasmaElectricBorder(pts) {
         this.ctx.save();
+
+        // 1. Core Glowing Border Stroke
         this.ctx.beginPath();
         this.ctx.moveTo(pts[0][0], pts[0][1]);
         for (let i = 1; i < pts.length; i++) {
@@ -863,6 +989,51 @@ class RetroLensApp {
         this.ctx.strokeStyle = this.settings.borderColor;
         this.ctx.shadowColor = this.settings.borderColor;
         this.ctx.shadowBlur = this.settings.borderWidth * 3;
+        this.ctx.stroke();
+
+        // 2. High-Frequency Plasma Electric Arcs & Sparks
+        this.ctx.beginPath();
+        this.ctx.lineWidth = 1.8;
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.shadowColor = '#00f2fe';
+        this.ctx.shadowBlur = 14;
+
+        for (let i = 0; i < pts.length; i++) {
+            const p1 = pts[i];
+            const p2 = pts[(i + 1) % pts.length];
+
+            const dist = GeometryUtils.euclideanDist(p1, p2);
+            const steps = Math.max(6, Math.floor(dist / 22));
+
+            let current = [p1[0], p1[1]];
+            this.ctx.moveTo(current[0], current[1]);
+
+            for (let s = 1; s <= steps; s++) {
+                const t = s / steps;
+                const targetX = p1[0] + (p2[0] - p1[0]) * t;
+                const targetY = p1[1] + (p2[1] - p1[1]) * t;
+
+                const noise = (Math.random() - 0.5) * 12;
+                const normalX = -(p2[1] - p1[1]) / (dist || 1);
+                const normalY = (p2[0] - p1[0]) / (dist || 1);
+
+                const arcX = targetX + normalX * noise;
+                const arcY = targetY + normalY * noise;
+
+                this.ctx.lineTo(arcX, arcY);
+
+                // Random Plasma Spark Particles
+                if (Math.random() < 0.28) {
+                    this.ctx.save();
+                    this.ctx.fillStyle = Math.random() > 0.5 ? '#ec4899' : '#00f2fe';
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.beginPath();
+                    this.ctx.arc(arcX + (Math.random() - 0.5) * 8, arcY + (Math.random() - 0.5) * 8, Math.random() * 2.5 + 1, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                }
+            }
+        }
         this.ctx.stroke();
         this.ctx.restore();
     }

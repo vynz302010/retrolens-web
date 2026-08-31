@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RetroLens — Gesture Portal Engine</title>
-    <meta name="description" content="High-performance real-time hand gesture portal filter pipeline running directly in browser.">
+    <title>RetroLens — Gesture Portal & AI Hologram Engine</title>
+    <meta name="description" content="High-performance real-time hand gesture portal filter pipeline and AI face mesh hologram mask running directly in browser.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f2fe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0'/><path d='M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6'/><path d='M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8'/><path d='M18 8a2 2 0 0 1 2 2v4a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></svg>">
     
     <!-- Google Fonts -->
@@ -15,9 +15,10 @@
     <!-- RetroLens Styles -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- MediaPipe Hands CDN -->
+    <!-- MediaPipe Vision CDNs -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <div class="grid-bg"></div>
@@ -96,7 +97,7 @@
                 <div class="hud-bottom">
                     <div class="hud-badge-group">
                         <div class="hud-badge" id="hudFps">FPS: 60</div>
-                        <div class="hud-badge" id="hudRes">AUTO ASPECT</div>
+                        <div class="hud-badge" id="hudRes">1:1 ASPECT</div>
                     </div>
                     <div class="gesture-hint" id="gestureHint">SPREAD HANDS TO OPEN PORTAL</div>
                 </div>
@@ -156,6 +157,10 @@
                 <div class="control-segment">
                     <span class="segment-label">CAMERA & TOOLS</span>
                     <div class="btn-group">
+                        <button id="btnMask" class="btn btn-icon-text" title="Toggle AI Cyber Hologram Mask">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span id="maskBtnText">MASK: ON</span>
+                        </button>
                         <button id="btnMirror" class="btn btn-icon-text" title="Toggle Horizontal Selfie Mirroring">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
                             <span id="mirrorBtnText">MIRROR: ON</span>
