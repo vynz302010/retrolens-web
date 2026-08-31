@@ -1,6 +1,6 @@
 /**
  * RetroLens Studio Pro - Main Web Application & MediaPipe Pipeline
- * Ultra 60 FPS Optimized Engine (Portrait Un-squished & 2-Finger/3-Finger Gestures)
+ * Ultra 60 FPS Optimized Engine (Aspect-Correct Center Crop - 100% Un-squished Normal View)
  */
 
 import { GeometryUtils } from './geometry.js';
@@ -22,7 +22,7 @@ class RetroLensApp {
         // Default Config
         this.config = {
             width: this.isMobile ? 480 : 960,
-            height: this.isMobile ? 640 : 540,
+            height: this.isMobile ? 854 : 540,
             pinchThresholdPx: this.isMobile ? 40.0 : 50.0,
             filterCooldownMs: 250,
             modeCooldownMs: 1200,
@@ -35,6 +35,14 @@ class RetroLensApp {
             borderColor: '#00f2fe',
             borderWidth: 3,
             showSkeleton: true
+        };
+
+        // Crop metrics for zero-distortion center cropping
+        this.cropMetrics = {
+            sx: 0,
+            sy: 0,
+            sWidth: 640,
+            sHeight: 480
         };
 
         // State
@@ -612,13 +620,11 @@ class RetroLensApp {
         try {
             if (this.btnStartCamera) this.btnStartCamera.style.display = 'none';
 
-            // High Performance Camera Stream Request (Portrait 9:16 on mobile)
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
                     width: this.isMobile ? { ideal: 720 } : { ideal: 1280 },
-                    height: this.isMobile ? { ideal: 1280 } : { ideal: 720 },
-                    aspectRatio: this.isMobile ? { ideal: 9/16 } : { ideal: 16/9 }
+                    height: this.isMobile ? { ideal: 1280 } : { ideal: 720 }
                 },
                 audio: false
             };
@@ -632,7 +638,6 @@ class RetroLensApp {
                 };
             });
 
-            // Enforce portrait dimensions for mobile (480x854)
             let targetW = 960;
             let targetH = 540;
 
@@ -685,13 +690,30 @@ class RetroLensApp {
         const h = this.canvas.height;
 
         if (!this.isFrozen && this.video.readyState >= 2 && !this.video.paused && !this.video.ended) {
+            const vw = this.video.videoWidth || w;
+            const vh = this.video.videoHeight || h;
+            
+            const videoAspect = vw / vh;
+            const canvasAspect = w / h;
+
+            let sx = 0, sy = 0, sWidth = vw, sHeight = vh;
+            if (videoAspect > canvasAspect) {
+                sWidth = vh * canvasAspect;
+                sx = (vw - sWidth) / 2;
+            } else {
+                sHeight = vw / canvasAspect;
+                sy = (vh - sHeight) / 2;
+            }
+
+            this.cropMetrics = { sx, sy, sWidth, sHeight, vw, vh };
+
             this.ctx.save();
             if (this.isMirrored && this.facingMode === 'user') {
                 this.ctx.scale(-1, 1);
-                this.ctx.drawImage(this.video, -w, 0, w, h);
+                this.ctx.drawImage(this.video, sx, sy, sWidth, sHeight, -w, 0, w, h);
             } else {
                 this.ctx.scale(1, 1);
-                this.ctx.drawImage(this.video, 0, 0, w, h);
+                this.ctx.drawImage(this.video, sx, sy, sWidth, sHeight, 0, 0, w, h);
             }
             this.ctx.restore();
 
@@ -737,6 +759,8 @@ class RetroLensApp {
         const currentTime = performance.now();
         const isSelfie = (this.isMirrored && this.facingMode === 'user');
 
+        const { sx, sy, sWidth, sHeight, vw, vh } = this.cropMetrics;
+
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             for (const landmarks of results.multiHandLandmarks) {
                 if (this.settings.showSkeleton) {
@@ -753,10 +777,19 @@ class RetroLensApp {
                     isThreeFingersDetected = true;
                 }
 
-                const tips = [4, 8, 12, 16, 20].map(idx => [
-                    isSelfie ? (1.0 - landmarks[idx].x) * w : landmarks[idx].x * w,
-                    landmarks[idx].y * h
-                ]);
+                // Aspect-Correct Hand Landmark Coordinate Mapping
+                const tips = [4, 8, 12, 16, 20].map(idx => {
+                    const lx = landmarks[idx].x * vw;
+                    const ly = landmarks[idx].y * vh;
+
+                    let cx = ((lx - sx) / sWidth) * w;
+                    let cy = ((ly - sy) / sHeight) * h;
+
+                    if (isSelfie) {
+                        cx = w - cx;
+                    }
+                    return [cx, cy];
+                });
                 allHandTips.push(tips);
 
                 const pinchDist = GeometryUtils.euclideanDist(tips[0], tips[4]);
@@ -912,6 +945,8 @@ class RetroLensApp {
     }
 
     drawHandSkeleton(landmarks, w, h, isSelfie) {
+        const { sx, sy, sWidth, sHeight, vw, vh } = this.cropMetrics;
+
         const connections = [
             [0, 1], [1, 2], [2, 3], [3, 4],
             [0, 5], [5, 6], [6, 7], [7, 8],
@@ -925,9 +960,22 @@ class RetroLensApp {
         this.ctx.lineWidth = 1.5;
         this.ctx.strokeStyle = `${this.settings.borderColor}80`;
 
+        const getMappedPt = (idx) => {
+            const lx = landmarks[idx].x * vw;
+            const ly = landmarks[idx].y * vh;
+
+            let cx = ((lx - sx) / sWidth) * w;
+            let cy = ((ly - sy) / sHeight) * h;
+
+            if (isSelfie) {
+                cx = w - cx;
+            }
+            return [cx, cy];
+        };
+
         for (const [startIdx, endIdx] of connections) {
-            const p1 = [isSelfie ? (1.0 - landmarks[startIdx].x) * w : landmarks[startIdx].x * w, landmarks[startIdx].y * h];
-            const p2 = [isSelfie ? (1.0 - landmarks[endIdx].x) * w : landmarks[endIdx].x * w, landmarks[endIdx].y * h];
+            const p1 = getMappedPt(startIdx);
+            const p2 = getMappedPt(endIdx);
 
             this.ctx.beginPath();
             this.ctx.moveTo(p1[0], p1[1]);
@@ -936,8 +984,7 @@ class RetroLensApp {
         }
 
         for (let i = 0; i < landmarks.length; i++) {
-            const px = isSelfie ? (1.0 - landmarks[i].x) * w : landmarks[i].x * w;
-            const py = landmarks[i].y * h;
+            const [px, py] = getMappedPt(i);
 
             this.ctx.beginPath();
             this.ctx.arc(px, py, [4, 8, 12, 16, 20].includes(i) ? 4 : 2.5, 0, 2 * Math.PI);
