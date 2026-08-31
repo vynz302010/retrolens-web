@@ -71,6 +71,11 @@
                     </div>
                 </div>
 
+                <!-- Giant Countdown Timer Display -->
+                <div class="timer-countdown-overlay" id="timerOverlay" style="display: none;">
+                    <span id="timerNumber">3</span>
+                </div>
+
                 <div class="hud-bottom">
                     <div class="hud-badge" id="hudFps">FPS: 60</div>
                     <div class="gesture-hint" id="gestureHint">SPREAD HANDS TO OPEN PORTAL</div>
@@ -109,6 +114,11 @@
                 </div>
 
                 <div class="btn-group">
+                    <!-- Timer Selector Button -->
+                    <button id="btnTimerToggle" class="btn btn-icon-text" title="Snapshot Delay Timer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span id="timerBtnText">TIMER: OFF</span>
+                    </button>
                     <button id="btnSwitchCamera" class="btn btn-icon-text" title="Switch Front/Rear Camera">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0-4.42-3.58-8-8-8s-8 3.58-8 8"/><path d="M4 14c0 4.42 3.58 8 8 8s8-3.58 8-8"/><polyline points="20 14 24 14 22 18"/><polyline points="4 10 0 10 2 6"/></svg>
                         <span>CAM SWITCH</span>
@@ -166,7 +176,7 @@
                     <p class="gesture-card-desc">
                         <span class="kbd">N</span> / <span class="kbd">P</span> : Cycle Filters<br>
                         <span class="kbd">C</span> : Toggle 2D / 3D Mode<br>
-                        <span class="kbd">S</span> : Capture Snapshot<br>
+                        <span class="kbd">S</span> : Capture Snapshot (with Timer)<br>
                         <span class="kbd">F</span> : Fullscreen Viewport
                     </p>
                 </div>

@@ -251,6 +251,39 @@ body {
     backdrop-filter: blur(10px);
 }
 
+/* Giant Countdown Timer Display Overlay */
+.timer-countdown-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: rgba(7, 10, 18, 0.85);
+    border: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 40px rgba(0, 242, 254, 0.5);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 25;
+    animation: pulseTimer 1s infinite ease-in-out;
+}
+
+#timerNumber {
+    font-family: var(--font-mono);
+    font-size: 64px;
+    font-weight: 800;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 20px var(--neon-cyan);
+}
+
+@keyframes pulseTimer {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.08); }
+}
+
 /* Loading Splash */
 .splash-overlay {
     position: absolute;
@@ -558,5 +591,12 @@ body {
     .hud-pill {
         font-size: 9px;
         padding: 4px 8px;
+    }
+    .timer-countdown-overlay {
+        width: 100px;
+        height: 100px;
+    }
+    #timerNumber {
+        font-size: 48px;
     }
 }

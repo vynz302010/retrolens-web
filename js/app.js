@@ -33,20 +33,32 @@ class RetroLensApp {
         this.activeFilterIdx = 0;
         this.is3DMode = false;
         this.soundEnabled = true;
-        this.facingMode = 'user';
+        this.facingMode = 'user'; // 'user' (selfie) or 'environment' (rear camera)
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
 
+        // Snapshot Timer State (0s = Off, 3s, 5s, 10s)
+        this.timerOptions = [0, 3, 5, 10];
+        this.timerIdx = 0;
+        this.isCountingDown = false;
+        this.countdownIntervalId = null;
+
         this.lastFilterSwitchTime = 0;
         this.lastModeToggleTime = 0;
 
+        // FPS calculation
         this.fps = 60;
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
 
+        // Store latest hand results for continuous rendering
         this.latestResults = null;
+
+        // Web Audio Context
         this.audioCtx = null;
+
+        // MediaPipe Hands instance
         this.hands = null;
 
         this.initDOM();
@@ -62,6 +74,10 @@ class RetroLensApp {
         return this.filters[(this.activeFilterIdx + 1) % this.filters.length];
     }
 
+    get selectedTimerSeconds() {
+        return this.timerOptions[this.timerIdx];
+    }
+
     initDOM() {
         this.hudMode = document.getElementById('hudMode');
         this.hudFilter = document.getElementById('hudFilter');
@@ -70,13 +86,19 @@ class RetroLensApp {
         this.splashScreen = document.getElementById('splashScreen');
         this.btnStartCamera = document.getElementById('btnStartCamera');
         this.filtersListContainer = document.getElementById('filtersList');
+        
+        this.timerOverlay = document.getElementById('timerOverlay');
+        this.timerNumber = document.getElementById('timerNumber');
+        this.timerBtnText = document.getElementById('timerBtnText');
 
         this.renderFilterButtons();
 
+        // Bind control buttons
         document.getElementById('btnPrevFilter').addEventListener('click', () => this.cycleFilter(-1));
         document.getElementById('btnNextFilter').addEventListener('click', () => this.cycleFilter(1));
         document.getElementById('btnToggleMode').addEventListener('click', () => this.toggleMode());
-        document.getElementById('btnSnapshot').addEventListener('click', () => this.takeSnapshot());
+        document.getElementById('btnSnapshot').addEventListener('click', () => this.handleSnapshotTrigger());
+        document.getElementById('btnTimerToggle').addEventListener('click', () => this.cycleTimer());
         document.getElementById('btnSwitchCamera').addEventListener('click', () => this.switchCamera());
         document.getElementById('btnFullscreen').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('btnSound').addEventListener('click', () => this.toggleSound());
@@ -96,7 +118,7 @@ class RetroLensApp {
             if (key === 'n') this.cycleFilter(1);
             else if (key === 'p') this.cycleFilter(-1);
             else if (key === 'c') this.toggleMode();
-            else if (key === 's') this.takeSnapshot();
+            else if (key === 's') this.handleSnapshotTrigger();
             else if (key === 'f') this.toggleFullscreen();
         });
 
@@ -159,6 +181,47 @@ class RetroLensApp {
         this.playSound('mode');
     }
 
+    cycleTimer() {
+        this.timerIdx = (this.timerIdx + 1) % this.timerOptions.length;
+        const sec = this.selectedTimerSeconds;
+        this.timerBtnText.innerText = sec === 0 ? 'TIMER: OFF' : `TIMER: ${sec}s`;
+        this.playSound('filter');
+    }
+
+    handleSnapshotTrigger() {
+        if (this.isCountingDown) return;
+        const delay = this.selectedTimerSeconds;
+
+        if (delay === 0) {
+            this.takeSnapshot();
+        } else {
+            this.startCountdown(delay);
+        }
+    }
+
+    startCountdown(seconds) {
+        this.isCountingDown = true;
+        let count = seconds;
+        this.timerNumber.innerText = count;
+        this.timerOverlay.style.display = 'flex';
+        this.playSound('beep');
+
+        if (this.countdownIntervalId) clearInterval(this.countdownIntervalId);
+
+        this.countdownIntervalId = setInterval(() => {
+            count--;
+            if (count > 0) {
+                this.timerNumber.innerText = count;
+                this.playSound('beep');
+            } else {
+                clearInterval(this.countdownIntervalId);
+                this.timerOverlay.style.display = 'none';
+                this.isCountingDown = false;
+                this.takeSnapshot();
+            }
+        }, 1000);
+    }
+
     initAudio() {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -197,6 +260,14 @@ class RetroLensApp {
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
             osc.start(now);
             osc.stop(now + 0.15);
+        } else if (type === 'beep') {
+            // Countdown Timer Beep
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now); // A5
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
         } else if (type === 'snap') {
             osc.type = 'square';
             osc.frequency.setValueAtTime(1200, now);
