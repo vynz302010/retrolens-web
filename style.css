@@ -14,6 +14,7 @@
     --neon-pink: #ec4899;
     --neon-amber: #f59e0b;
     --neon-green: #10b981;
+    --neon-red: #ef4444;
     
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
@@ -27,6 +28,7 @@
     --radius-lg: 18px;
     --shadow-glow: 0 0 30px rgba(0, 242, 254, 0.15);
     --shadow-pink: 0 0 25px rgba(236, 72, 153, 0.25);
+    --shadow-red: 0 0 25px rgba(239, 68, 68, 0.4);
 }
 
 * {
@@ -210,6 +212,23 @@ body {
 .dot-indicator.pink {
     background: var(--neon-pink);
     box-shadow: 0 0 8px var(--neon-pink);
+}
+
+.dot-indicator.red-blink {
+    background: var(--neon-red);
+    box-shadow: 0 0 10px var(--neon-red);
+    animation: blinkRed 1s infinite ease-in-out;
+}
+
+@keyframes blinkRed {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.2; transform: scale(0.8); }
+}
+
+.rec-pill {
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.15);
 }
 
 .hud-pill.active-mode {
@@ -438,6 +457,31 @@ body {
     color: #040914;
     border: none;
     font-weight: 700;
+}
+
+.btn-rec {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    transition: all 0.2s ease;
+}
+
+.btn-rec:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: var(--neon-red);
+}
+
+.btn-rec.recording {
+    background: var(--neon-red);
+    color: #fff;
+    border-color: #fff;
+    box-shadow: var(--shadow-red);
+    animation: pulseRecBtn 1s infinite ease-in-out;
+}
+
+@keyframes pulseRecBtn {
+    0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+    50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
 }
 
 .btn-snap {

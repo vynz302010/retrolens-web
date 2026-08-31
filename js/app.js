@@ -38,9 +38,16 @@ class RetroLensApp {
         this.animFrameId = null;
         this.isProcessing = false;
 
-        // Snapshot Countdown Timer State (Default: 3 Seconds)
+        // Snapshot Countdown Timer State
         this.isCountingDown = false;
         this.countdownIntervalId = null;
+
+        // Video Recording State
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
+        this.recDurationSec = 0;
+        this.recTimerInterval = null;
 
         this.lastFilterSwitchTime = 0;
         this.lastModeToggleTime = 0;
@@ -76,6 +83,8 @@ class RetroLensApp {
         this.hudMode = document.getElementById('hudMode');
         this.hudFilter = document.getElementById('hudFilter');
         this.hudFps = document.getElementById('hudFps');
+        this.hudRec = document.getElementById('hudRec');
+        this.recTimerText = document.getElementById('recTimerText');
         this.gestureHint = document.getElementById('gestureHint');
         this.splashScreen = document.getElementById('splashScreen');
         this.btnStartCamera = document.getElementById('btnStartCamera');
@@ -86,11 +95,15 @@ class RetroLensApp {
 
         this.renderFilterButtons();
 
-        // Bind control buttons (touch & click listeners)
-        const btnSnapshot = document.getElementById('btnSnapshot');
-        btnSnapshot.addEventListener('click', (e) => {
+        // Bind control buttons
+        document.getElementById('btnSnapshot').addEventListener('click', (e) => {
             e.preventDefault();
             this.handleSnapshotTrigger();
+        });
+
+        document.getElementById('btnRecord').addEventListener('click', (e) => {
+            e.preventDefault();
+            this.toggleRecording();
         });
 
         document.getElementById('btnPrevFilter').addEventListener('click', () => this.cycleFilter(-1));
@@ -115,6 +128,7 @@ class RetroLensApp {
             if (key === 'n') this.cycleFilter(1);
             else if (key === 'p') this.cycleFilter(-1);
             else if (key === 'c') this.toggleMode();
+            else if (key === 'r') this.toggleRecording();
             else if (key === 's') this.handleSnapshotTrigger();
             else if (key === 'f') this.toggleFullscreen();
         });
@@ -180,7 +194,7 @@ class RetroLensApp {
 
     handleSnapshotTrigger() {
         if (this.isCountingDown) return;
-        this.startCountdown(3); // Default 3-Second Countdown Timer
+        this.startCountdown(3);
     }
 
     startCountdown(seconds = 3) {
@@ -204,6 +218,118 @@ class RetroLensApp {
                 this.takeSnapshot();
             }
         }, 1000);
+    }
+
+    // Video Recording Feature
+    toggleRecording() {
+        if (this.isRecording) {
+            this.stopRecording();
+        } else {
+            this.startRecording();
+        }
+    }
+
+    getSupportedMimeType() {
+        const types = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4'
+        ];
+        for (const t of types) {
+            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) {
+                return t;
+            }
+        }
+        return '';
+    }
+
+    startRecording() {
+        try {
+            const canvasStream = this.canvas.captureStream(30);
+            const mimeType = this.getSupportedMimeType();
+            const options = mimeType ? { mimeType } : {};
+
+            this.recordedChunks = [];
+            this.mediaRecorder = new MediaRecorder(canvasStream, options);
+
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    this.recordedChunks.push(event.data);
+                }
+            };
+
+            this.mediaRecorder.onstop = () => {
+                this.saveRecording();
+            };
+
+            this.mediaRecorder.start(250); // Collect slices every 250ms
+            this.isRecording = true;
+            this.playSound('recStart');
+
+            // Update UI
+            const btnRec = document.getElementById('btnRecord');
+            const recText = document.getElementById('recBtnText');
+            btnRec.classList.add('recording');
+            recText.innerText = 'STOP REC';
+            this.hudRec.style.display = 'inline-flex';
+
+            // Start HUD recording duration counter
+            this.recDurationSec = 0;
+            this.updateRecTimerUI();
+            this.recTimerInterval = setInterval(() => {
+                this.recDurationSec++;
+                this.updateRecTimerUI();
+            }, 1000);
+
+        } catch (err) {
+            console.error('Failed to start recording:', err);
+            alert('Perangkat Anda tidak mendukung perekaman video langsung di browser.');
+        }
+    }
+
+    stopRecording() {
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            this.playSound('recStop');
+
+            if (this.recTimerInterval) clearInterval(this.recTimerInterval);
+
+            // Reset UI
+            const btnRec = document.getElementById('btnRecord');
+            const recText = document.getElementById('recBtnText');
+            btnRec.classList.remove('recording');
+            recText.innerText = 'REC';
+            this.hudRec.style.display = 'none';
+        }
+    }
+
+    updateRecTimerUI() {
+        const mins = String(Math.floor(this.recDurationSec / 60)).padStart(2, '0');
+        const secs = String(this.recDurationSec % 60).padStart(2, '0');
+        this.recTimerText.innerText = `REC ${mins}:${secs}`;
+    }
+
+    saveRecording() {
+        if (this.recordedChunks.length === 0) return;
+        const mimeType = this.mediaRecorder.mimeType || 'video/webm';
+        const blob = new Blob(this.recordedChunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `RetroLens_Video_${timestamp}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
     }
 
     initAudio() {
@@ -245,13 +371,28 @@ class RetroLensApp {
             osc.start(now);
             osc.stop(now + 0.15);
         } else if (type === 'beep') {
-            // Countdown Timer Beep
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, now); // A5
+            osc.frequency.setValueAtTime(880, now);
             gain.gain.setValueAtTime(0.25, now);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
             osc.start(now);
             osc.stop(now + 0.12);
+        } else if (type === 'recStart') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        } else if (type === 'recStop') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(440, now + 0.15);
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
         } else if (type === 'snap') {
             osc.type = 'square';
             osc.frequency.setValueAtTime(1200, now);
