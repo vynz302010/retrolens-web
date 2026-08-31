@@ -28,6 +28,13 @@ class RetroLensApp {
             fistDistThresholdPx: 85.0,
         };
 
+        // Customizable Portal Style Settings
+        this.settings = {
+            borderColor: '#00f2fe',
+            borderWidth: 3,
+            showSkeleton: true
+        };
+
         // State
         this.filters = FILTERS_LIST;
         this.activeFilterIdx = 0;
@@ -117,10 +124,39 @@ class RetroLensApp {
             this.btnStartCamera.addEventListener('click', () => this.startCamera());
         }
 
+        // Help Modal
         const helpModal = document.getElementById('helpModal');
         document.getElementById('btnHelp').addEventListener('click', () => helpModal.classList.add('open'));
         document.getElementById('btnCloseHelp').addEventListener('click', () => helpModal.classList.remove('open'));
         document.getElementById('btnGotIt').addEventListener('click', () => helpModal.classList.remove('open'));
+
+        // Settings Modal
+        const settingsModal = document.getElementById('settingsModal');
+        document.getElementById('btnSettings').addEventListener('click', () => settingsModal.classList.add('open'));
+        document.getElementById('btnCloseSettings').addEventListener('click', () => settingsModal.classList.remove('open'));
+        document.getElementById('btnSaveSettings').addEventListener('click', () => settingsModal.classList.remove('open'));
+
+        // Settings Controls Binding
+        const sliderGlow = document.getElementById('sliderGlow');
+        const glowVal = document.getElementById('glowVal');
+        sliderGlow.addEventListener('input', (e) => {
+            this.settings.borderWidth = parseInt(e.target.value, 10);
+            glowVal.innerText = `${this.settings.borderWidth}px`;
+        });
+
+        const checkSkeleton = document.getElementById('checkSkeleton');
+        checkSkeleton.addEventListener('change', (e) => {
+            this.settings.showSkeleton = e.target.checked;
+        });
+
+        const swatches = document.querySelectorAll('.swatch');
+        swatches.forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                swatches.forEach(s => s.classList.remove('active'));
+                swatch.classList.add('active');
+                this.settings.borderColor = swatch.getAttribute('data-color');
+            });
+        });
 
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT') return;
@@ -574,7 +610,9 @@ class RetroLensApp {
 
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             for (const landmarks of results.multiHandLandmarks) {
-                this.drawHandSkeleton(landmarks, w, h, isSelfie);
+                if (this.settings.showSkeleton) {
+                    this.drawHandSkeleton(landmarks, w, h, isSelfie);
+                }
 
                 const tips = [4, 8, 12, 16, 20].map(idx => [
                     isSelfie ? (1.0 - landmarks[idx].x) * w : landmarks[idx].x * w,
@@ -662,6 +700,7 @@ class RetroLensApp {
         );
         this.ctx.restore();
 
+        // Custom Border Glow & Width
         this.ctx.save();
         this.ctx.beginPath();
         this.ctx.moveTo(pts[0][0], pts[0][1]);
@@ -669,10 +708,10 @@ class RetroLensApp {
             this.ctx.lineTo(pts[i][0], pts[i][1]);
         }
         this.ctx.closePath();
-        this.ctx.lineWidth = 2.5;
-        this.ctx.strokeStyle = '#00f2fe';
-        this.ctx.shadowColor = '#00f2fe';
-        this.ctx.shadowBlur = 10;
+        this.ctx.lineWidth = this.settings.borderWidth;
+        this.ctx.strokeStyle = this.settings.borderColor;
+        this.ctx.shadowColor = this.settings.borderColor;
+        this.ctx.shadowBlur = this.settings.borderWidth * 3;
         this.ctx.stroke();
         this.ctx.restore();
     }
@@ -689,6 +728,12 @@ class RetroLensApp {
                 return FilterBank.pixelate(imageData, width, height, 14);
             case 'glitch':
                 return FilterBank.glitch(imageData, width, height);
+            case 'matrix':
+                return FilterBank.matrixRain(imageData, width, height, timeSec);
+            case 'cyber-scan':
+                return FilterBank.cyberScan(imageData, width, height, timeSec);
+            case 'vhs-tape':
+                return FilterBank.vhsTape(imageData, width, height, timeSec);
             case 'invert':
                 return FilterBank.invert(imageData);
             case 'red-channel':
@@ -718,7 +763,7 @@ class RetroLensApp {
 
         this.ctx.save();
         this.ctx.lineWidth = 1.5;
-        this.ctx.strokeStyle = 'rgba(0, 242, 254, 0.5)';
+        this.ctx.strokeStyle = `${this.settings.borderColor}80`;
 
         for (const [startIdx, endIdx] of connections) {
             const p1 = [isSelfie ? (1.0 - landmarks[startIdx].x) * w : landmarks[startIdx].x * w, landmarks[startIdx].y * h];
@@ -736,7 +781,7 @@ class RetroLensApp {
 
             this.ctx.beginPath();
             this.ctx.arc(px, py, [4, 8, 12, 16, 20].includes(i) ? 4 : 2.5, 0, 2 * Math.PI);
-            this.ctx.fillStyle = [4, 8, 12, 16, 20].includes(i) ? '#ec4899' : '#00f2fe';
+            this.ctx.fillStyle = [4, 8, 12, 16, 20].includes(i) ? '#ec4899' : this.settings.borderColor;
             this.ctx.fill();
         }
 

@@ -1,8 +1,7 @@
 /**
- * RetroLens - Filter Bank (High-Performance Zero-Allocation Shaders)
+ * RetroLens - High-Performance Filter & Shader Engine (15 Shaders)
  */
 
-// Pre-allocated reusable typed array buffers to eliminate Garbage Collection lag on mobile
 let grayBuffer = new Uint8Array(960 * 540);
 let invBlurBuffer = new Uint8Array(960 * 540);
 let tempBlurBuffer = new Uint8Array(960 * 540);
@@ -19,7 +18,6 @@ function ensureBuffers(size, totalPixels) {
     }
 }
 
-// Precomputed JET / Heatmap lookup table for thermal filter (256 entries)
 const JET_LUT = new Uint8ClampedArray(256 * 3);
 (function initJetLUT() {
     for (let i = 0; i < 256; i++) {
@@ -90,14 +88,11 @@ export class FilterBank {
         const totalPixels = width * height;
         ensureBuffers(d.length, totalPixels);
 
-        // 1. Fast Grayscale
         for (let i = 0, p = 0; p < totalPixels; i += 4, p++) {
             grayBuffer[p] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
         }
 
-        const radius = 3; // Reduced blur radius for high mobile FPS
-
-        // 2. Horizontal box pass
+        const radius = 3;
         for (let y = 0; y < height; y++) {
             const rowOffset = y * width;
             for (let x = 0; x < width; x++) {
@@ -111,7 +106,6 @@ export class FilterBank {
             }
         }
 
-        // 3. Vertical box pass
         for (let x = 0; x < width; x++) {
             for (let y = 0; y < height; y++) {
                 let sum = 0, count = 0;
@@ -124,7 +118,6 @@ export class FilterBank {
             }
         }
 
-        // 4. Color Dodge blend
         for (let i = 0, p = 0; p < totalPixels; i += 4, p++) {
             const g = grayBuffer[p];
             const ib = invBlurBuffer[p];
@@ -171,7 +164,6 @@ export class FilterBank {
         const len = d.length;
         ensureBuffers(len, totalPixels);
 
-        // Copy pixels into reusable buffer without memory allocation
         copyBuffer.set(d);
         const shift = Math.floor(Math.random() * 6) + 3;
 
@@ -235,7 +227,7 @@ export class FilterBank {
             grayBuffer[p] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
         }
 
-        for (let y = 1; y < height - 1; y += 2) { // Step 2 for high performance mobile rendering
+        for (let y = 1; y < height - 1; y += 2) {
             const rowPrev = (y - 1) * width;
             const rowCurr = y * width;
             const rowNext = (y + 1) * width;
@@ -270,11 +262,6 @@ export class FilterBank {
 
     static blur(imageData, width, height, radius = 4) {
         const d = imageData.data;
-        const totalPixels = width * height;
-        const len = d.length;
-        ensureBuffers(len, totalPixels);
-
-        // Fast downsampled box blur
         for (let y = 0; y < height; y += 2) {
             const rowOffset = y * width * 4;
             for (let x = 0; x < width; x += 2) {
@@ -293,7 +280,6 @@ export class FilterBank {
                 d[target + 2] = (b / count) | 0;
             }
         }
-
         return imageData;
     }
 
@@ -354,18 +340,115 @@ export class FilterBank {
 
         return imageData;
     }
+
+    // NEW ADVANCED SHADERS
+
+    /**
+     * Matrix Rain Code: Falling digital rain code overlay
+     */
+    static matrixRain(imageData, width, height, timeSec) {
+        const d = imageData.data;
+        const t = (timeSec * 12) | 0;
+
+        for (let y = 0; y < height; y += 4) {
+            const rowOffset = y * width;
+            for (let x = 0; x < width; x += 4) {
+                const dropY = ((x * 17 + t * 5) % height) | 0;
+                const distY = Math.abs(y - dropY);
+                const idx = (rowOffset + x) * 4;
+
+                if (distY < 40) {
+                    const alpha = 1.0 - (distY / 40);
+                    d[idx] = (d[idx] * 0.2) | 0;
+                    d[idx + 1] = Math.min(255, (d[idx + 1] * 0.3 + 240 * alpha) | 0);
+                    d[idx + 2] = (d[idx + 2] * 0.2) | 0;
+                } else {
+                    d[idx] = (d[idx] * 0.3) | 0;
+                    d[idx + 1] = (d[idx + 1] * 0.6 + 40) | 0;
+                    d[idx + 2] = (d[idx + 2] * 0.3) | 0;
+                }
+            }
+        }
+        return imageData;
+    }
+
+    /**
+     * Cyber Scan: Holographic Grid & Pulsing Scanline
+     */
+    static cyberScan(imageData, width, height, timeSec) {
+        const d = imageData.data;
+        const scanY = ((timeSec * 180) % height) | 0;
+
+        for (let y = 0; y < height; y++) {
+            const rowOffset = y * width;
+            const isScanLine = Math.abs(y - scanY) < 3;
+            const isGridY = (y % 16 === 0);
+
+            for (let x = 0; x < width; x++) {
+                const idx = (rowOffset + x) * 4;
+                const isGridX = (x % 16 === 0);
+
+                if (isScanLine) {
+                    d[idx] = 255;
+                    d[idx + 1] = 255;
+                    d[idx + 2] = 255;
+                } else if (isGridX || isGridY) {
+                    d[idx] = (d[idx] * 0.4) | 0;
+                    d[idx + 1] = Math.min(255, d[idx + 1] + 160);
+                    d[idx + 2] = Math.min(255, d[idx + 2] + 200);
+                } else {
+                    d[idx] = (d[idx] * 0.5) | 0;
+                    d[idx + 1] = (d[idx + 1] * 0.8) | 0;
+                    d[idx + 2] = Math.min(255, d[idx + 2] + 40);
+                }
+            }
+        }
+        return imageData;
+    }
+
+    /**
+     * VHS Tape Retro: Chromatic Aberration & Scan Lines
+     */
+    static vhsTape(imageData, width, height, timeSec) {
+        const d = imageData.data;
+        const totalPixels = width * height;
+        ensureBuffers(d.length, totalPixels);
+        copyBuffer.set(d);
+
+        const offset = Math.sin(timeSec * 10) > 0.8 ? 8 : 4;
+
+        for (let y = 0; y < height; y++) {
+            const rowOffset = y * width;
+            const scanlineNoise = (Math.sin(y * 0.8 + timeSec * 20) * 20) | 0;
+
+            for (let x = 0; x < width; x++) {
+                const idx = (rowOffset + x) * 4;
+                const rx = Math.min(width - 1, x + offset);
+                const rIdx = (rowOffset + rx) * 4;
+
+                d[idx] = Math.min(255, Math.max(0, copyBuffer[rIdx] + scanlineNoise));
+                d[idx + 1] = copyBuffer[idx + 1];
+                d[idx + 2] = copyBuffer[idx + 2];
+            }
+        }
+        return imageData;
+    }
 }
 
+// Clean, professional filter list with technical codes
 export const FILTERS_LIST = [
     { id: "dual-tone", name: "Dual Tone", code: "DT-01", desc: "Cyberpunk Duo Threshold" },
     { id: "thermal", name: "Thermal", code: "TH-02", desc: "JET Spectrum Heatmap" },
     { id: "sketch", name: "Sketch", code: "SK-03", desc: "Pencil Contour Dodge" },
     { id: "pixelate", name: "Pixelate", code: "PX-04", desc: "Mosaic Downsample" },
     { id: "glitch", name: "Glitch", code: "GL-05", desc: "RGB Channel Displacement" },
-    { id: "invert", name: "Invert", code: "IV-06", desc: "Inverted Luminance" },
-    { id: "red-channel", name: "Red Pass", code: "RP-07", desc: "Monochrome Red Isolator" },
-    { id: "edge", name: "Edge Neon", code: "EN-08", desc: "Sobel Vector Gradient" },
-    { id: "blur", name: "Gaussian", code: "GB-09", desc: "Convolution Box Blur" },
-    { id: "cartoon", name: "Posterize", code: "PR-10", desc: "Quantized Comic Lines" },
-    { id: "rainbow-wave", name: "Spectrum", code: "SW-11", desc: "Dynamic Sine HSV Wave" },
+    { id: "matrix", name: "Matrix", code: "MX-06", desc: "Digital Rain Code Shader" },
+    { id: "cyber-scan", name: "Cyber Scan", code: "CS-07", desc: "Holographic Grid Scanline" },
+    { id: "vhs-tape", name: "VHS Retro", code: "VH-08", desc: "Tape Chromatic Distortion" },
+    { id: "invert", name: "Invert", code: "IV-09", desc: "Inverted Luminance" },
+    { id: "red-channel", name: "Red Pass", code: "RP-10", desc: "Monochrome Red Isolator" },
+    { id: "edge", name: "Edge Neon", code: "EN-11", desc: "Sobel Vector Gradient" },
+    { id: "blur", name: "Gaussian", code: "GB-12", desc: "Convolution Box Blur" },
+    { id: "cartoon", name: "Posterize", code: "PR-13", desc: "Quantized Comic Lines" },
+    { id: "rainbow-wave", name: "Spectrum", code: "SW-14", desc: "Dynamic Sine HSV Wave" },
 ];
