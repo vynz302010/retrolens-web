@@ -1007,6 +1007,15 @@ class RetroLensApp {
                     }
                 }
             }
+
+            // Draw Rasengan Energy Orb on top of portal layers
+            for (const landmarks of results.multiHandLandmarks) {
+                this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
+            }
+
+            if (this.currentFilter.id === 'rasengan') {
+                this.gestureHint.innerText = 'JUTSU // RASENGAN CHAKRA ACTIVE';
+            }
         } else {
             this.gestureHint.innerText = 'SPREAD HANDS TO OPEN PORTAL';
         }
