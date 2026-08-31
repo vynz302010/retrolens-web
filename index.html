@@ -65,7 +65,7 @@
             <video id="inputVideo" playsinline autoplay muted></video>
             
             <!-- Primary Output Canvas -->
-            <canvas id="outputCanvas" width="1280" height="720"></canvas>
+            <canvas id="outputCanvas" width="960" height="540"></canvas>
 
             <!-- Real-Time HUD Layer -->
             <div class="hud-layer">
@@ -96,7 +96,7 @@
                 <div class="hud-bottom">
                     <div class="hud-badge-group">
                         <div class="hud-badge" id="hudFps">FPS: 60</div>
-                        <div class="hud-badge" id="hudRes">1080p HD</div>
+                        <div class="hud-badge" id="hudRes">AUTO ASPECT</div>
                     </div>
                     <div class="gesture-hint" id="gestureHint">SPREAD HANDS TO OPEN PORTAL</div>
                 </div>
@@ -145,7 +145,7 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
                             <span id="recBtnText">REC</span>
                         </button>
-                        <button id="btnSnapshot" class="btn btn-snap" title="Capture Image (Key: S / Gesture: ✌️)">
+                        <button id="btnSnapshot" class="btn btn-snap" title="Capture Image (Key: S / Gesture: 3 Fingers)">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                             <span>SNAPSHOT (3s)</span>
                         </button>
@@ -252,17 +252,17 @@
                 <div class="gesture-card">
                     <div class="gesture-card-header">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        <span>PINCH FILTER CYCLING</span>
+                        <span>2-FINGER FULLSCREEN BLUR</span>
                     </div>
-                    <p class="gesture-card-desc">Bring thumb tip and pinky tip together on either hand to trigger instant filter cycling.</p>
+                    <p class="gesture-card-desc">Raise 2 fingers (Index + Middle) to trigger a full-screen blurred camera view effect!</p>
                 </div>
 
                 <div class="gesture-card">
                     <div class="gesture-card-header">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                        <span>PEACE SIGN SNAPSHOT (✌️)</span>
+                        <span>3-FINGER SNAPSHOT (3s)</span>
                     </div>
-                    <p class="gesture-card-desc">Raise Index and Middle fingers into a Peace / Victory sign to trigger an automatic 3s countdown snapshot!</p>
+                    <p class="gesture-card-desc">Raise 3 fingers (Index + Middle + Ring) to trigger an automatic 3s countdown snapshot!</p>
                 </div>
 
                 <div class="gesture-card">

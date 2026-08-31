@@ -1,6 +1,6 @@
 /**
  * RetroLens Studio Pro - Main Web Application & MediaPipe Pipeline
- * Ultra 60 FPS Optimized Engine (Adaptive Canvas & Zero-GC Shaders)
+ * Ultra 60 FPS Optimized Engine (Portrait Un-squished & 2-Finger/3-Finger Gestures)
  */
 
 import { GeometryUtils } from './geometry.js';
@@ -19,14 +19,14 @@ class RetroLensApp {
         // Mobile Device Detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-        // Default Config (Ultra-Smooth 60 FPS Processing Resolution)
+        // Default Config
         this.config = {
-            width: this.isMobile ? 640 : 960,
-            height: this.isMobile ? 360 : 540,
+            width: this.isMobile ? 480 : 960,
+            height: this.isMobile ? 640 : 540,
             pinchThresholdPx: this.isMobile ? 40.0 : 50.0,
             filterCooldownMs: 250,
             modeCooldownMs: 1200,
-            gestureCooldownMs: 1500,
+            gestureCooldownMs: 2000,
             fistDistThresholdPx: 85.0,
         };
 
@@ -45,6 +45,7 @@ class RetroLensApp {
         this.facingMode = 'user'; // 'user' (selfie) or 'environment' (rear camera)
         this.isMirrored = true;   // Selfie Mirror Toggle
         this.isFrozen = false;     // Freeze / Pause Frame Toggle
+        this.isFullscreenBlur = false; // 2-Finger Fullscreen Blur State
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
@@ -611,12 +612,11 @@ class RetroLensApp {
         try {
             if (this.btnStartCamera) this.btnStartCamera.style.display = 'none';
 
-            // High Performance Camera Stream Request
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
-                    width: { ideal: this.isMobile ? 854 : 1280 },
-                    height: { ideal: this.isMobile ? 480 : 720 }
+                    width: { ideal: this.isMobile ? 480 : 1280 },
+                    height: { ideal: this.isMobile ? 640 : 720 }
                 },
                 audio: false
             };
@@ -630,13 +630,27 @@ class RetroLensApp {
                 };
             });
 
-            // Calculate camera aspect ratio dynamically to prevent squishing (gepeng)
-            const rawVw = this.video.videoWidth || 1280;
-            const rawVh = this.video.videoHeight || 720;
-            const aspect = rawVw / rawVh;
+            // Calculate native physical camera aspect ratio to prevent squishing
+            const rawVw = this.video.videoWidth || 640;
+            const rawVh = this.video.videoHeight || 480;
 
-            const targetW = this.isMobile ? 640 : 960;
-            const targetH = Math.round(targetW / aspect);
+            let targetW = 960;
+            let targetH = 540;
+
+            if (this.isMobile) {
+                // If phone camera feed is vertical portrait (height > width)
+                if (rawVh > rawVw) {
+                    targetW = 480;
+                    targetH = Math.round(480 * (rawVh / rawVw));
+                } else {
+                    targetW = 640;
+                    targetH = Math.round(640 * (rawVh / rawVw));
+                }
+            } else {
+                targetW = 960;
+                targetH = Math.round(960 * (rawVh / rawVw));
+            }
+
             this.updateCanvasDimensions(targetW, targetH);
 
             const viewportContainer = document.getElementById('viewportContainer');
@@ -724,6 +738,9 @@ class RetroLensApp {
 
         const allHandTips = [];
         let fistCount = 0;
+        let isTwoFingersDetected = false;
+        let isThreeFingersDetected = false;
+
         const currentTime = performance.now();
         const isSelfie = (this.isMirrored && this.facingMode === 'user');
 
@@ -733,13 +750,14 @@ class RetroLensApp {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
                 }
 
-                // Peace Sign Gesture Recognition (✌️) -> Auto Snapshot
-                if (GeometryUtils.isPeaceSign(landmarks)) {
-                    if (currentTime - this.lastGestureTime > this.config.gestureCooldownMs) {
-                        this.lastGestureTime = currentTime;
-                        this.gestureHint.innerText = 'PEACE SIGN DETECTED // SNAPSHOT TIMER';
-                        this.handleSnapshotTrigger();
-                    }
+                // Check 2-Finger Gesture -> Fullscreen Blur Effect
+                if (GeometryUtils.isTwoFingers(landmarks)) {
+                    isTwoFingersDetected = true;
+                }
+
+                // Check 3-Finger Gesture -> Auto Snapshot Trigger
+                if (GeometryUtils.isThreeFingers(landmarks)) {
+                    isThreeFingersDetected = true;
                 }
 
                 const tips = [4, 8, 12, 16, 20].map(idx => [
@@ -762,33 +780,52 @@ class RetroLensApp {
                 }
             }
 
+            // 2-Finger Gesture: Fullscreen Blur Effect across the entire camera view
+            if (isTwoFingersDetected) {
+                const fullImageData = this.ctx.getImageData(0, 0, w, h);
+                FilterBank.blur(fullImageData, w, h, 8);
+                this.ctx.putImageData(fullImageData, 0, 0);
+                this.gestureHint.innerText = '2-FINGER GESTURE // FULLSCREEN BLUR ACTIVE';
+            }
+
+            // 3-Finger Gesture: Trigger 3s Countdown Snapshot
+            if (isThreeFingersDetected) {
+                if (currentTime - this.lastGestureTime > this.config.gestureCooldownMs) {
+                    this.lastGestureTime = currentTime;
+                    this.gestureHint.innerText = '3-FINGER GESTURE // SNAPSHOT TIMER';
+                    this.handleSnapshotTrigger();
+                }
+            }
+
             if (fistCount === 2 && (currentTime - this.lastModeToggleTime > this.config.modeCooldownMs)) {
                 this.toggleMode();
                 this.lastModeToggleTime = currentTime;
                 this.gestureHint.innerText = `DUAL FIST // MODE SWITCH (${this.is3DMode ? '3D' : '2D'})`;
             }
 
-            if (this.is3DMode) {
-                if (allHandTips.length === 2) {
-                    const t1 = allHandTips[0];
-                    const t2 = allHandTips[1];
-                    this.renderPortalPolygon([t1[0], t1[1], t1[2], t2[2], t2[1], t2[0]], this.currentFilter.id);
-                    this.renderPortalPolygon([t1[2], t1[3], t1[4], t2[4], t2[3], t2[2]], this.secondaryFilter.id);
-                    this.gestureHint.innerText = '3D DUAL-MESH PORTAL ACTIVE';
-                } else if (allHandTips.length === 1) {
-                    this.renderPortalPolygon(allHandTips[0], this.currentFilter.id);
-                    this.gestureHint.innerText = '1-HAND PORTAL ACTIVE';
-                }
-            } else {
-                if (allHandTips.length === 2) {
-                    const corners = [allHandTips[0][0], allHandTips[0][1], allHandTips[1][0], allHandTips[1][1]];
-                    const quad = GeometryUtils.sortConvexQuad(corners);
-                    this.gestureHint.innerText = '2D QUAD PORTAL ACTIVE';
-                    this.renderPortalPolygon(quad, this.currentFilter.id);
-                } else if (allHandTips.length === 1) {
-                    const t = allHandTips[0];
-                    this.renderPortalPolygon([t[0], t[1], t[2], t[4]], this.currentFilter.id);
-                    this.gestureHint.innerText = '1-HAND PORTAL ACTIVE';
+            if (!isTwoFingersDetected) {
+                if (this.is3DMode) {
+                    if (allHandTips.length === 2) {
+                        const t1 = allHandTips[0];
+                        const t2 = allHandTips[1];
+                        this.renderPortalPolygon([t1[0], t1[1], t1[2], t2[2], t2[1], t2[0]], this.currentFilter.id);
+                        this.renderPortalPolygon([t1[2], t1[3], t1[4], t2[4], t2[3], t2[2]], this.secondaryFilter.id);
+                        this.gestureHint.innerText = '3D DUAL-MESH PORTAL ACTIVE';
+                    } else if (allHandTips.length === 1) {
+                        this.renderPortalPolygon(allHandTips[0], this.currentFilter.id);
+                        this.gestureHint.innerText = '1-HAND PORTAL ACTIVE';
+                    }
+                } else {
+                    if (allHandTips.length === 2) {
+                        const corners = [allHandTips[0][0], allHandTips[0][1], allHandTips[1][0], allHandTips[1][1]];
+                        const quad = GeometryUtils.sortConvexQuad(corners);
+                        this.gestureHint.innerText = '2D QUAD PORTAL ACTIVE';
+                        this.renderPortalPolygon(quad, this.currentFilter.id);
+                    } else if (allHandTips.length === 1) {
+                        const t = allHandTips[0];
+                        this.renderPortalPolygon([t[0], t[1], t[2], t[4]], this.currentFilter.id);
+                        this.gestureHint.innerText = '1-HAND PORTAL ACTIVE';
+                    }
                 }
             }
         } else {
