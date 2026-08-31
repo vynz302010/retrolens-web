@@ -1,6 +1,6 @@
 /**
  * RetroLens Studio Pro - Main Web Application & MediaPipe Pipeline
- * Ultra 60 FPS Optimized Engine (Native Stream Aspect, Plasma Electric Arcs & AI Face Hologram Mask)
+ * Ultra 60 FPS Optimized Engine (Native Stream Aspect, Plasma Electric Arcs, Theremin Synth & Cyber Watermark)
  */
 
 import { GeometryUtils } from './geometry.js';
@@ -34,6 +34,7 @@ class RetroLensApp {
         this.settings = {
             borderColor: '#00f2fe',
             borderWidth: 3,
+            borderStyle: 'plasma', // 'plasma', 'solid', 'dots', 'double'
             showSkeleton: true
         };
 
@@ -42,10 +43,12 @@ class RetroLensApp {
         this.activeFilterIdx = 0;
         this.is3DMode = false;
         this.soundEnabled = true;
-        this.facingMode = 'user'; // 'user' (selfie) or 'environment' (rear camera)
-        this.isMirrored = true;   // Selfie Mirror Toggle
-        this.isFrozen = false;     // Freeze / Pause Frame Toggle
-        this.showFaceMask = true;  // AI Face Mesh Cyber Hologram Mask Toggle
+        this.thereminEnabled = false; // Live Hand Gesture Theremin Synth
+        this.showWatermark = true;     // Cyber Watermark Timestamp Stamp
+        this.facingMode = 'user';     // 'user' (selfie) or 'environment' (rear camera)
+        this.isMirrored = true;       // Selfie Mirror Toggle
+        this.isFrozen = false;         // Freeze / Pause Frame Toggle
+        this.showFaceMask = true;      // AI Face Mesh Cyber Hologram Mask Toggle
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
@@ -61,6 +64,10 @@ class RetroLensApp {
         this.recordedChunks = [];
         this.recDurationSec = 0;
         this.recTimerInterval = null;
+
+        // Theremin Web Audio Synthesizer State
+        this.thereminOsc = null;
+        this.thereminGain = null;
 
         // In-App Media Gallery State
         this.galleryItems = [];
@@ -113,6 +120,7 @@ class RetroLensApp {
         this.timerOverlay = document.getElementById('timerOverlay');
         this.timerNumber = document.getElementById('timerNumber');
         this.galleryCountBadge = document.getElementById('galleryCountBadge');
+        this.hudTheremin = document.getElementById('hudTheremin');
 
         this.renderFilterButtons();
 
@@ -134,6 +142,8 @@ class RetroLensApp {
         document.getElementById('btnMirror').addEventListener('click', () => this.toggleMirror());
         document.getElementById('btnFreeze').addEventListener('click', () => this.toggleFreeze());
         document.getElementById('btnMask').addEventListener('click', () => this.toggleFaceMask());
+        document.getElementById('btnTheremin').addEventListener('click', () => this.toggleTheremin());
+        document.getElementById('btnStamp').addEventListener('click', () => this.toggleWatermarkStamp());
         document.getElementById('btnFullscreen').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('btnSound').addEventListener('click', () => this.toggleSound());
 
@@ -169,6 +179,11 @@ class RetroLensApp {
             glowVal.innerText = `${this.settings.borderWidth}px`;
         });
 
+        const selectBorderStyle = document.getElementById('selectBorderStyle');
+        selectBorderStyle.addEventListener('change', (e) => {
+            this.settings.borderStyle = e.target.value;
+        });
+
         const checkSkeleton = document.getElementById('checkSkeleton');
         checkSkeleton.addEventListener('change', (e) => {
             this.settings.showSkeleton = e.target.checked;
@@ -192,6 +207,7 @@ class RetroLensApp {
             else if (key === 'r') this.toggleRecording();
             else if (key === 's') this.handleSnapshotTrigger();
             else if (key === 'm') this.toggleFaceMask();
+            else if (key === 't') this.toggleTheremin();
             else if (key === 'f') this.toggleFullscreen();
             else if (e.code === 'Space') {
                 e.preventDefault();
@@ -285,6 +301,35 @@ class RetroLensApp {
             maskBtnText.innerText = `MASK: ${this.showFaceMask ? 'ON' : 'OFF'}`;
         }
         this.playSound('mode');
+    }
+
+    toggleTheremin() {
+        this.thereminEnabled = !this.thereminEnabled;
+        const thereminBtnText = document.getElementById('thereminBtnText');
+        if (thereminBtnText) {
+            thereminBtnText.innerText = `SYNTH: ${this.thereminEnabled ? 'ON' : 'OFF'}`;
+        }
+        if (this.hudTheremin) {
+            this.hudTheremin.style.display = this.thereminEnabled ? 'inline-block' : 'none';
+        }
+
+        if (!this.thereminEnabled && this.thereminOsc) {
+            try {
+                this.thereminOsc.stop();
+                this.thereminOsc.disconnect();
+                this.thereminOsc = null;
+            } catch (e) {}
+        }
+        this.playSound('mode');
+    }
+
+    toggleWatermarkStamp() {
+        this.showWatermark = !this.showWatermark;
+        const stampBtnText = document.getElementById('stampBtnText');
+        if (stampBtnText) {
+            stampBtnText.innerText = `STAMP: ${this.showWatermark ? 'ON' : 'OFF'}`;
+        }
+        this.playSound('filter');
     }
 
     handleSnapshotTrigger() {
@@ -575,27 +620,28 @@ class RetroLensApp {
         }
     }
 
-    toggleSound() {
-        this.soundEnabled = !this.soundEnabled;
-        const textSpan = document.getElementById('soundText');
-        textSpan.innerText = this.soundEnabled ? 'AUDIO ON' : 'AUDIO OFF';
-    }
+    updateThereminPitch(handNormalizedY) {
+        if (!this.thereminEnabled || !this.audioCtx) return;
+        if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
 
-    toggleFullscreen() {
-        const container = document.getElementById('viewportContainer');
-        if (!document.fullscreenElement) {
-            container.requestFullscreen().catch(err => console.error(err));
+        const freq = Math.round(200 + (1.0 - Math.min(1.0, Math.max(0.0, handNormalizedY))) * 800);
+
+        if (!this.thereminOsc) {
+            this.thereminOsc = this.audioCtx.createOscillator();
+            this.thereminGain = this.audioCtx.createGain();
+            this.thereminOsc.type = 'sine';
+            this.thereminOsc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+            this.thereminGain.gain.setValueAtTime(0.08, this.audioCtx.currentTime);
+            this.thereminOsc.connect(this.thereminGain);
+            this.thereminGain.connect(this.audioCtx.destination);
+            this.thereminOsc.start();
         } else {
-            document.exitFullscreen();
+            this.thereminOsc.frequency.setTargetAtTime(freq, this.audioCtx.currentTime, 0.05);
         }
-    }
 
-    async switchCamera() {
-        this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
+        if (this.hudTheremin) {
+            this.hudTheremin.innerText = `THEREMIN: ${freq}Hz`;
         }
-        await this.startCamera();
     }
 
     initMediaPipe() {
@@ -725,6 +771,11 @@ class RetroLensApp {
             // Render Hand Portal Filters
             this.renderLandmarksAndPortal(rawVw, rawVh);
 
+            // Render Cyber Watermark Timestamp Stamp
+            if (this.showWatermark) {
+                this.renderWatermarkStamp(rawVw, rawVh);
+            }
+
             this.aiFrameSkip++;
             if (!this.isProcessing && (this.aiFrameSkip % (this.isMobile ? 2 : 1) === 0)) {
                 this.isProcessing = true;
@@ -752,6 +803,30 @@ class RetroLensApp {
 
     onHandResults(results) {
         this.latestResults = results;
+    }
+
+    renderWatermarkStamp(w, h) {
+        this.ctx.save();
+        const dateStr = new Date().toISOString().slice(0, 16).replace('T', ' ');
+        const text = `RETROLENS PRO // ${dateStr} // CYBER VISION`;
+
+        this.ctx.font = '10px "JetBrains Mono", monospace';
+        const textWidth = this.ctx.measureText(text).width;
+
+        const x = w - textWidth - 16;
+        const y = h - 16;
+
+        this.ctx.fillStyle = 'rgba(7, 10, 18, 0.75)';
+        this.ctx.fillRect(x - 8, y - 12, textWidth + 16, 18);
+        this.ctx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x - 8, y - 12, textWidth + 16, 18);
+
+        this.ctx.fillStyle = '#00f2fe';
+        this.ctx.shadowColor = '#00f2fe';
+        this.ctx.shadowBlur = 6;
+        this.ctx.fillText(text, x, y);
+        this.ctx.restore();
     }
 
     renderFaceHologramMask(w, h) {
@@ -852,6 +927,11 @@ class RetroLensApp {
             for (const landmarks of results.multiHandLandmarks) {
                 if (this.settings.showSkeleton) {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
+                }
+
+                // Update Theremin Synthesizer Pitch from Hand Height
+                if (this.thereminEnabled && landmarks[8]) {
+                    this.updateThereminPitch(landmarks[8].y);
                 }
 
                 // Check 2-Finger Gesture -> Fullscreen Blur Effect
@@ -956,8 +1036,70 @@ class RetroLensApp {
         );
         this.ctx.restore();
 
-        // Render Plasma Spark & Electric Edge FX
-        this.drawPlasmaElectricBorder(pts);
+        // Render Portal Border FX (Plasma Arcs, Solid, Dotted, Double Ring)
+        this.drawPortalBorder(pts);
+    }
+
+    drawPortalBorder(pts) {
+        this.ctx.save();
+
+        if (this.settings.borderStyle === 'solid') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) {
+                this.ctx.lineTo(pts[i][0], pts[i][1]);
+            }
+            this.ctx.closePath();
+            this.ctx.lineWidth = this.settings.borderWidth;
+            this.ctx.strokeStyle = this.settings.borderColor;
+            this.ctx.shadowColor = this.settings.borderColor;
+            this.ctx.shadowBlur = this.settings.borderWidth * 3;
+            this.ctx.stroke();
+        } else if (this.settings.borderStyle === 'dots') {
+            this.ctx.beginPath();
+            this.ctx.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) {
+                this.ctx.lineTo(pts[i][0], pts[i][1]);
+            }
+            this.ctx.closePath();
+            this.ctx.lineWidth = this.settings.borderWidth + 1;
+            this.ctx.strokeStyle = this.settings.borderColor;
+            this.ctx.setLineDash([8, 8]);
+            this.ctx.shadowColor = this.settings.borderColor;
+            this.ctx.shadowBlur = 12;
+            this.ctx.stroke();
+        } else if (this.settings.borderStyle === 'double') {
+            // Ring 1
+            this.ctx.beginPath();
+            this.ctx.moveTo(pts[0][0], pts[0][1]);
+            for (let i = 1; i < pts.length; i++) {
+                this.ctx.lineTo(pts[i][0], pts[i][1]);
+            }
+            this.ctx.closePath();
+            this.ctx.lineWidth = this.settings.borderWidth;
+            this.ctx.strokeStyle = this.settings.borderColor;
+            this.ctx.shadowColor = this.settings.borderColor;
+            this.ctx.shadowBlur = 10;
+            this.ctx.stroke();
+
+            // Ring 2 Outer
+            this.ctx.beginPath();
+            this.ctx.moveTo(pts[0][0] - 6, pts[0][1] - 6);
+            for (let i = 1; i < pts.length; i++) {
+                this.ctx.lineTo(pts[i][0] + (i % 2 === 0 ? 6 : -6), pts[i][1] + (i % 2 === 0 ? -6 : 6));
+            }
+            this.ctx.closePath();
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = '#ec4899';
+            this.ctx.shadowColor = '#ec4899';
+            this.ctx.shadowBlur = 8;
+            this.ctx.stroke();
+        } else {
+            // Plasma Electric Arcs & Sparks
+            this.drawPlasmaElectricBorder(pts);
+        }
+
+        this.ctx.restore();
     }
 
     drawPlasmaElectricBorder(pts) {

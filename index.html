@@ -98,6 +98,7 @@
                     <div class="hud-badge-group">
                         <div class="hud-badge" id="hudFps">FPS: 60</div>
                         <div class="hud-badge" id="hudRes">1:1 ASPECT</div>
+                        <div class="hud-badge" id="hudTheremin" style="display:none; color:var(--neon-pink);">THEREMIN: 440Hz</div>
                     </div>
                     <div class="gesture-hint" id="gestureHint">SPREAD HANDS TO OPEN PORTAL</div>
                 </div>
@@ -146,7 +147,7 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
                             <span id="recBtnText">REC</span>
                         </button>
-                        <button id="btnSnapshot" class="btn btn-snap" title="Capture Image (Key: S / Gesture: 3 Fingers)">
+                        <button id="btnSnapshot" class="btn btn-snap" title="Capture Image (Key: S)">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                             <span>SNAPSHOT (3s)</span>
                         </button>
@@ -160,6 +161,14 @@
                         <button id="btnMask" class="btn btn-icon-text" title="Toggle AI Cyber Hologram Mask">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                             <span id="maskBtnText">MASK: ON</span>
+                        </button>
+                        <button id="btnTheremin" class="btn btn-icon-text" title="Toggle Live Gesture Theremin Sound Synthesizer">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                            <span id="thereminBtnText">SYNTH: OFF</span>
+                        </button>
+                        <button id="btnStamp" class="btn btn-icon-text" title="Toggle Cyber Watermark Timestamp Stamp">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span id="stampBtnText">STAMP: ON</span>
                         </button>
                         <button id="btnMirror" class="btn btn-icon-text" title="Toggle Horizontal Selfie Mirroring">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
@@ -205,6 +214,16 @@
             </div>
 
             <div class="settings-form">
+                <div class="setting-item">
+                    <label>Portal Border FX Style</label>
+                    <select id="selectBorderStyle" class="slider-input" style="background:#070a12; color:#00f2fe; padding:8px; border:1px solid rgba(0,242,254,0.3); border-radius:6px; font-family:var(--font-mono); font-size:12px;">
+                        <option value="plasma">Plasma Electric Arc & Sparks</option>
+                        <option value="solid">Clean Glowing Solid Line</option>
+                        <option value="dots">Cyber Dotted Tech Grid</option>
+                        <option value="double">Double Ring Cyber Glow</option>
+                    </select>
+                </div>
+
                 <div class="setting-item">
                     <label>Portal Glow Color</label>
                     <div class="color-swatches">
