@@ -612,11 +612,13 @@ class RetroLensApp {
         try {
             if (this.btnStartCamera) this.btnStartCamera.style.display = 'none';
 
+            // High Performance Camera Stream Request (Portrait 9:16 on mobile)
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
-                    width: { ideal: this.isMobile ? 480 : 1280 },
-                    height: { ideal: this.isMobile ? 640 : 720 }
+                    width: this.isMobile ? { ideal: 720 } : { ideal: 1280 },
+                    height: this.isMobile ? { ideal: 1280 } : { ideal: 720 },
+                    aspectRatio: this.isMobile ? { ideal: 9/16 } : { ideal: 16/9 }
                 },
                 audio: false
             };
@@ -630,32 +632,23 @@ class RetroLensApp {
                 };
             });
 
-            // Calculate native physical camera aspect ratio to prevent squishing
-            const rawVw = this.video.videoWidth || 640;
-            const rawVh = this.video.videoHeight || 480;
-
+            // Enforce portrait dimensions for mobile (480x854)
             let targetW = 960;
             let targetH = 540;
 
             if (this.isMobile) {
-                // If phone camera feed is vertical portrait (height > width)
-                if (rawVh > rawVw) {
-                    targetW = 480;
-                    targetH = Math.round(480 * (rawVh / rawVw));
-                } else {
-                    targetW = 640;
-                    targetH = Math.round(640 * (rawVh / rawVw));
-                }
+                targetW = 480;
+                targetH = 854;
             } else {
                 targetW = 960;
-                targetH = Math.round(960 * (rawVh / rawVw));
+                targetH = 540;
             }
 
             this.updateCanvasDimensions(targetW, targetH);
 
             const viewportContainer = document.getElementById('viewportContainer');
             if (viewportContainer) {
-                viewportContainer.style.aspectRatio = `${rawVw} / ${rawVh}`;
+                viewportContainer.style.aspectRatio = this.isMobile ? '9 / 16' : '16 / 9';
             }
 
             this.splashScreen.style.display = 'none';
