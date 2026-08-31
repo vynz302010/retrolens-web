@@ -18,7 +18,7 @@ class RetroLensApp {
         // Mobile Device Detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-        // Default Config (Mobile-optimized resolutions)
+        // Default Config
         this.config = {
             width: this.isMobile ? 640 : 960,
             height: this.isMobile ? 360 : 540,
@@ -33,7 +33,7 @@ class RetroLensApp {
         this.activeFilterIdx = 0;
         this.is3DMode = false;
         this.soundEnabled = true;
-        this.facingMode = 'user'; // 'user' (selfie) or 'environment' (rear camera)
+        this.facingMode = 'user';
         this.stream = null;
         this.animFrameId = null;
         this.isProcessing = false;
@@ -41,18 +41,12 @@ class RetroLensApp {
         this.lastFilterSwitchTime = 0;
         this.lastModeToggleTime = 0;
 
-        // FPS calculation
         this.fps = 60;
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
 
-        // Store latest hand results for continuous rendering
         this.latestResults = null;
-
-        // Web Audio Context
         this.audioCtx = null;
-
-        // MediaPipe Hands instance
         this.hands = null;
 
         this.initDOM();
@@ -262,7 +256,6 @@ class RetroLensApp {
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
         });
 
-        // Use modelComplexity 0 (Lite Hand Model) on mobile for 60 FPS performance, 1 on desktop
         this.hands.setOptions({
             maxNumHands: 2,
             modelComplexity: this.isMobile ? 0 : 1,
@@ -380,7 +373,6 @@ class RetroLensApp {
 
         const allHandTips = [];
         let fistCount = 0;
-        let isBowtie = false;
         const currentTime = performance.now();
         const isSelfie = (this.facingMode === 'user');
 
@@ -428,15 +420,8 @@ class RetroLensApp {
             } else {
                 if (allHandTips.length === 2) {
                     const corners = [allHandTips[0][0], allHandTips[0][1], allHandTips[1][0], allHandTips[1][1]];
-                    let quad;
-                    if (GeometryUtils.isHandRotated(corners[0], corners[1]) || GeometryUtils.isHandRotated(corners[2], corners[3])) {
-                        quad = GeometryUtils.sortQuadBowtie(corners);
-                        isBowtie = true;
-                        this.gestureHint.innerText = '2D BOWTIE PORTAL ACTIVE';
-                    } else {
-                        quad = GeometryUtils.sortQuadClean(corners);
-                        this.gestureHint.innerText = '2D QUAD PORTAL ACTIVE';
-                    }
+                    const quad = GeometryUtils.sortConvexQuad(corners);
+                    this.gestureHint.innerText = '2D QUAD PORTAL ACTIVE';
                     this.renderPortalPolygon(quad, this.currentFilter.id);
                 } else if (allHandTips.length === 1) {
                     const t = allHandTips[0];

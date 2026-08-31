@@ -45,35 +45,38 @@ export class GeometryUtils {
     }
 
     /**
-     * Sort 4 points into a convex quadrilateral (clean order: TL, TR, BR, BL)
+     * Sort 4 points into a clean convex quadrilateral (box) with ZERO self-intersecting / crisscross lines.
+     * Uses polar angle sorting around the geometric centroid.
      * @param {Array<[number, number]>} pts 
      * @returns {Array<[number, number]>}
      */
-    static sortQuadClean(pts) {
-        if (pts.length !== 4) return pts;
+    static sortConvexQuad(pts) {
+        if (!pts || pts.length !== 4) return pts;
         
-        // Sort by X coordinate ascending
-        const sortedByX = [...pts].sort((a, b) => a[0] - b[0]);
-        const leftTwo = sortedByX.slice(0, 2).sort((a, b) => a[1] - b[1]);
-        const rightTwo = sortedByX.slice(2, 4).sort((a, b) => a[1] - b[1]);
+        // 1. Calculate centroid center (cx, cy)
+        const cx = (pts[0][0] + pts[1][0] + pts[2][0] + pts[3][0]) / 4;
+        const cy = (pts[0][1] + pts[1][1] + pts[2][1] + pts[3][1]) / 4;
 
-        // [Top-Left, Top-Right, Bottom-Right, Bottom-Left]
-        return [leftTwo[0], rightTwo[0], rightTwo[1], leftTwo[1]];
+        // 2. Sort points by angle around the centroid (polar angle sorting)
+        return [...pts].sort((a, b) => {
+            const angleA = Math.atan2(a[1] - cy, a[0] - cx);
+            const angleB = Math.atan2(b[1] - cy, b[0] - cx);
+            return angleA - angleB;
+        });
     }
 
     /**
-     * Sort 4 points in Bowtie formation for rotated hand poses
-     * @param {Array<[number, number]>} pts 
-     * @returns {Array<[number, number]>}
+     * Legacy clean quad sort fallback
+     */
+    static sortQuadClean(pts) {
+        return this.sortConvexQuad(pts);
+    }
+
+    /**
+     * Legacy bowtie sort fallback
      */
     static sortQuadBowtie(pts) {
-        if (pts.length !== 4) return pts;
-        
-        const sortedByX = [...pts].sort((a, b) => a[0] - b[0]);
-        const leftTwo = sortedByX.slice(0, 2).sort((a, b) => a[1] - b[1]);
-        const rightTwo = sortedByX.slice(2, 4).sort((a, b) => a[1] - b[1]);
-
-        return [leftTwo[0], rightTwo[1], rightTwo[0], leftTwo[1]];
+        return this.sortConvexQuad(pts);
     }
 
     /**
