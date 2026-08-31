@@ -630,10 +630,19 @@ class RetroLensApp {
                 };
             });
 
-            // Set canvas processing resolution for 60 FPS performance
-            const vw = this.isMobile ? 640 : 960;
-            const vh = this.isMobile ? 360 : 540;
-            this.updateCanvasDimensions(vw, vh);
+            // Calculate camera aspect ratio dynamically to prevent squishing (gepeng)
+            const rawVw = this.video.videoWidth || 1280;
+            const rawVh = this.video.videoHeight || 720;
+            const aspect = rawVw / rawVh;
+
+            const targetW = this.isMobile ? 640 : 960;
+            const targetH = Math.round(targetW / aspect);
+            this.updateCanvasDimensions(targetW, targetH);
+
+            const viewportContainer = document.getElementById('viewportContainer');
+            if (viewportContainer) {
+                viewportContainer.style.aspectRatio = `${rawVw} / ${rawVh}`;
+            }
 
             this.splashScreen.style.display = 'none';
 
