@@ -115,14 +115,14 @@ class RetroLensApp {
         this.gestureHint = document.getElementById('gestureHint');
         this.splashScreen = document.getElementById('splashScreen');
         this.btnStartCamera = document.getElementById('btnStartCamera');
-        this.filtersListContainer = document.getElementById('filtersList');
+        this.filtersSelect = document.getElementById('filterSelect');
         
         this.timerOverlay = document.getElementById('timerOverlay');
         this.timerNumber = document.getElementById('timerNumber');
         this.galleryCountBadge = document.getElementById('galleryCountBadge');
         this.hudTheremin = document.getElementById('hudTheremin');
 
-        this.renderFilterButtons();
+        this.renderFilterDropdown();
 
         // Bind control buttons
         document.getElementById('btnSnapshot').addEventListener('click', (e) => {
@@ -199,7 +199,7 @@ class RetroLensApp {
         });
 
         window.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
             const key = e.key.toLowerCase();
             if (key === 'n') this.cycleFilter(1);
             else if (key === 'p') this.cycleFilter(-1);
@@ -225,29 +225,34 @@ class RetroLensApp {
         this.offCanvas.height = h;
     }
 
-    renderFilterButtons() {
-        this.filtersListContainer.innerHTML = '';
+    renderFilterDropdown() {
+        if (!this.filtersSelect) return;
+        this.filtersSelect.innerHTML = '';
         this.filters.forEach((filter, idx) => {
-            const btn = document.createElement('button');
-            btn.className = `filter-btn ${idx === this.activeFilterIdx ? 'active' : ''}`;
-            btn.innerHTML = `<span class="filter-code">${filter.code}</span> <span class="filter-name">${filter.name}</span>`;
-            btn.addEventListener('click', () => {
-                this.activeFilterIdx = idx;
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = `[${filter.code}] ${filter.name}`;
+            if (idx === this.activeFilterIdx) option.selected = true;
+            this.filtersSelect.appendChild(option);
+        });
+
+        if (!this.filtersSelectBound) {
+            this.filtersSelect.addEventListener('change', (e) => {
+                this.activeFilterIdx = parseInt(e.target.value, 10);
                 this.updateFilterUI();
                 this.playSound('filter');
             });
-            this.filtersListContainer.appendChild(btn);
-        });
+            this.filtersSelectBound = true;
+        }
     }
 
     updateFilterUI() {
         const filter = this.currentFilter;
         this.hudFilter.innerHTML = `<span class="dot-indicator cyan"></span><span>FILTER // ${filter.name.toUpperCase()}</span>`;
         
-        const buttons = this.filtersListContainer.querySelectorAll('.filter-btn');
-        buttons.forEach((btn, idx) => {
-            btn.classList.toggle('active', idx === this.activeFilterIdx);
-        });
+        if (this.filtersSelect && parseInt(this.filtersSelect.value, 10) !== this.activeFilterIdx) {
+            this.filtersSelect.value = this.activeFilterIdx;
+        }
     }
 
     cycleFilter(step = 1) {
