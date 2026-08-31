@@ -16,6 +16,12 @@ class RetroLensApp {
         this.offCanvas = document.createElement('canvas');
         this.offCtx = this.offCanvas.getContext('2d', { willReadFrequently: true });
 
+        // Offscreen canvas for Air Drawing overlay layer
+        this.drawingCanvas = document.createElement('canvas');
+        this.drawingCtx = this.drawingCanvas.getContext('2d');
+        this.isAirDrawing = false;
+        this.lastDrawPt = null;
+
         // Mobile Device Detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
@@ -147,6 +153,12 @@ class RetroLensApp {
         document.getElementById('btnFullscreen').addEventListener('click', () => this.toggleFullscreen());
         document.getElementById('btnSound').addEventListener('click', () => this.toggleSound());
 
+        const btnDraw = document.getElementById('btnDraw');
+        if (btnDraw) btnDraw.addEventListener('click', () => this.toggleAirDrawing());
+
+        const btnClearDraw = document.getElementById('btnClearDraw');
+        if (btnClearDraw) btnClearDraw.addEventListener('click', () => this.clearAirDrawing());
+
         if (this.btnStartCamera) {
             this.btnStartCamera.addEventListener('click', () => this.startCamera());
         }
@@ -208,6 +220,7 @@ class RetroLensApp {
             else if (key === 's') this.handleSnapshotTrigger();
             else if (key === 'm') this.toggleFaceMask();
             else if (key === 't') this.toggleTheremin();
+            else if (key === 'd') this.toggleAirDrawing();
             else if (key === 'f') this.toggleFullscreen();
             else if (e.code === 'Space') {
                 e.preventDefault();
@@ -223,6 +236,18 @@ class RetroLensApp {
         this.canvas.height = h;
         this.offCanvas.width = w;
         this.offCanvas.height = h;
+
+        if (this.drawingCanvas) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = this.drawingCanvas.width || w;
+            tempCanvas.height = this.drawingCanvas.height || h;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(this.drawingCanvas, 0, 0);
+
+            this.drawingCanvas.width = w;
+            this.drawingCanvas.height = h;
+            this.drawingCtx.drawImage(tempCanvas, 0, 0, w, h);
+        }
     }
 
     renderFilterDropdown() {
@@ -335,6 +360,27 @@ class RetroLensApp {
             stampBtnText.innerText = `STAMP: ${this.showWatermark ? 'ON' : 'OFF'}`;
         }
         this.playSound('filter');
+    }
+
+    toggleAirDrawing() {
+        this.isAirDrawing = !this.isAirDrawing;
+        this.lastDrawPt = null;
+        const drawBtnText = document.getElementById('drawBtnText');
+        if (drawBtnText) {
+            drawBtnText.innerText = `DRAW: ${this.isAirDrawing ? 'ON' : 'OFF'}`;
+        }
+        this.playSound(this.isAirDrawing ? 'mode' : 'beep');
+        if (this.isAirDrawing) {
+            this.gestureHint.innerText = 'AIR-DRAWING ACTIVE // EXTEND FINGER TO DRAW IN AIR';
+        }
+    }
+
+    clearAirDrawing() {
+        if (this.drawingCtx) {
+            this.drawingCtx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+        }
+        this.lastDrawPt = null;
+        this.playSound('beep');
     }
 
     handleSnapshotTrigger() {
@@ -776,6 +822,11 @@ class RetroLensApp {
             // Render Hand Portal Filters
             this.renderLandmarksAndPortal(rawVw, rawVh);
 
+            // Composite Air-Drawing Overlay Canvas Layer
+            if (this.drawingCanvas) {
+                this.ctx.drawImage(this.drawingCanvas, 0, 0);
+            }
+
             // Render Cyber Watermark Timestamp Stamp
             if (this.showWatermark) {
                 this.renderWatermarkStamp(rawVw, rawVh);
@@ -940,6 +991,36 @@ class RetroLensApp {
                 // Update Theremin Synthesizer Pitch from Hand Height
                 if (this.thereminEnabled && landmarks[8]) {
                     this.updateThereminPitch(landmarks[8].y);
+                }
+
+                // Air Drawing Pen Trail Tracking (Index Fingertip #8)
+                if (this.isAirDrawing && landmarks[8]) {
+                    const pt8 = [isSelfie ? (1.0 - landmarks[8].x) * w : landmarks[8].x * w, landmarks[8].y * h];
+                    if (this.lastDrawPt && this.drawingCtx) {
+                        this.drawingCtx.save();
+                        this.drawingCtx.beginPath();
+                        this.drawingCtx.moveTo(this.lastDrawPt[0], this.lastDrawPt[1]);
+                        this.drawingCtx.lineTo(pt8[0], pt8[1]);
+                        this.drawingCtx.lineWidth = 6;
+                        this.drawingCtx.lineCap = 'round';
+                        this.drawingCtx.lineJoin = 'round';
+                        this.drawingCtx.strokeStyle = '#00f2fe';
+                        this.drawingCtx.shadowColor = '#00f2fe';
+                        this.drawingCtx.shadowBlur = 14;
+                        this.drawingCtx.stroke();
+                        this.drawingCtx.restore();
+                    }
+                    this.lastDrawPt = pt8;
+
+                    // Glowing Air Nib Cursor Indicator
+                    this.ctx.save();
+                    this.ctx.beginPath();
+                    this.ctx.arc(pt8[0], pt8[1], 7, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#00f2fe';
+                    this.ctx.shadowColor = '#00f2fe';
+                    this.ctx.shadowBlur = 16;
+                    this.ctx.fill();
+                    this.ctx.restore();
                 }
 
                 // Check 2-Finger Gesture -> Fullscreen Blur Effect
