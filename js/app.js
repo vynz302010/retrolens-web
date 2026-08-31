@@ -18,10 +18,10 @@ class RetroLensApp {
         // Mobile Device Detection
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
-        // Default Config
+        // Default Config (Full HD 1080p Stream Support)
         this.config = {
-            width: this.isMobile ? 640 : 960,
-            height: this.isMobile ? 360 : 540,
+            width: 1280,
+            height: 720,
             pinchThresholdPx: this.isMobile ? 40.0 : 50.0,
             filterCooldownMs: 250,
             modeCooldownMs: 1200,
@@ -299,18 +299,16 @@ class RetroLensApp {
                 this.saveRecording();
             };
 
-            this.mediaRecorder.start(250); // Collect slices every 250ms
+            this.mediaRecorder.start(250);
             this.isRecording = true;
             this.playSound('recStart');
 
-            // Update UI
             const btnRec = document.getElementById('btnRecord');
             const recText = document.getElementById('recBtnText');
             btnRec.classList.add('recording');
             recText.innerText = 'STOP REC';
             this.hudRec.style.display = 'inline-flex';
 
-            // Start HUD recording duration counter
             this.recDurationSec = 0;
             this.updateRecTimerUI();
             this.recTimerInterval = setInterval(() => {
@@ -332,7 +330,6 @@ class RetroLensApp {
 
             if (this.recTimerInterval) clearInterval(this.recTimerInterval);
 
-            // Reset UI
             const btnRec = document.getElementById('btnRecord');
             const recText = document.getElementById('recBtnText');
             btnRec.classList.remove('recording');
@@ -504,11 +501,12 @@ class RetroLensApp {
         try {
             if (this.btnStartCamera) this.btnStartCamera.style.display = 'none';
 
+            // High Definition (Full HD 1080p / 720p) Camera Request
             const constraints = {
                 video: {
                     facingMode: this.facingMode,
-                    width: { ideal: this.isMobile ? 640 : 1280 },
-                    height: { ideal: this.isMobile ? 480 : 720 }
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 }
                 },
                 audio: false
             };
@@ -522,8 +520,9 @@ class RetroLensApp {
                 };
             });
 
-            const vw = this.video.videoWidth || (this.isMobile ? 640 : 960);
-            const vh = this.video.videoHeight || (this.isMobile ? 480 : 540);
+            // Set canvas dynamically to native camera hardware resolution (e.g. 1920x1080 or 1280x720)
+            const vw = this.video.videoWidth || 1280;
+            const vh = this.video.videoHeight || 720;
             this.updateCanvasDimensions(vw, vh);
 
             this.splashScreen.style.display = 'none';
