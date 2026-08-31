@@ -844,7 +844,6 @@ class RetroLensApp {
         const allHandTips = [];
         let fistCount = 0;
         let isTwoFingersDetected = false;
-        let isThreeFingersDetected = false;
 
         const currentTime = performance.now();
         const isSelfie = (this.isMirrored && this.facingMode === 'user');
@@ -858,11 +857,6 @@ class RetroLensApp {
                 // Check 2-Finger Gesture -> Fullscreen Blur Effect
                 if (GeometryUtils.isTwoFingers(landmarks)) {
                     isTwoFingersDetected = true;
-                }
-
-                // Check 3-Finger Gesture -> Auto Snapshot Trigger
-                if (GeometryUtils.isThreeFingers(landmarks)) {
-                    isThreeFingersDetected = true;
                 }
 
                 // 1:1 Direct Aspect Landmark Coordinate Mapping
@@ -892,15 +886,6 @@ class RetroLensApp {
                 FilterBank.blur(fullImageData, w, h, 8);
                 this.ctx.putImageData(fullImageData, 0, 0);
                 this.gestureHint.innerText = '2-FINGER GESTURE // FULLSCREEN BLUR ACTIVE';
-            }
-
-            // 3-Finger Gesture: Trigger 3s Countdown Snapshot
-            if (isThreeFingersDetected) {
-                if (currentTime - this.lastGestureTime > this.config.gestureCooldownMs) {
-                    this.lastGestureTime = currentTime;
-                    this.gestureHint.innerText = '3-FINGER GESTURE // SNAPSHOT TIMER';
-                    this.handleSnapshotTrigger();
-                }
             }
 
             if (fistCount === 2 && (currentTime - this.lastModeToggleTime > this.config.modeCooldownMs)) {
