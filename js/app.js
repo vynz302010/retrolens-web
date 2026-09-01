@@ -1007,16 +1007,6 @@ class RetroLensApp {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
                 }
 
-                // Gesture Shortcut: 1 Open Palm -> Auto Activate Air-Drawing Mode
-                if (GeometryUtils.isOpenHand(landmarks, w, h)) {
-                    if (!this.isAirDrawing) {
-                        this.isAirDrawing = true;
-                        const drawBtnText = document.getElementById('drawBtnText');
-                        if (drawBtnText) drawBtnText.innerText = 'DRAW: ON';
-                        this.playSound('mode');
-                    }
-                }
-
                 // Update Theremin Synthesizer Pitch from Hand Height
                 if (this.thereminEnabled && landmarks[8]) {
                     this.updateThereminPitch(landmarks[8].y);
@@ -1117,8 +1107,7 @@ class RetroLensApp {
                 this.gestureHint.innerText = `DUAL FIST // MODE SWITCH (${this.is3DMode ? '3D' : '2D'})`;
             }
 
-            // Skip hand portal filter rendering when Air-Drawing mode is active (Keep camera clean & clear)
-            if (!isTwoFingersDetected && !this.isAirDrawing) {
+            if (!isTwoFingersDetected) {
                 if (this.is3DMode) {
                     if (allHandTips.length === 2) {
                         const t1 = allHandTips[0];
@@ -1144,8 +1133,8 @@ class RetroLensApp {
                 }
             }
 
-            // Draw Rasengan Energy Orb on top of portal layers ONLY when [RS-16] Rasengan filter is selected AND drawing is OFF
-            if (this.currentFilter.id === 'rasengan' && !this.isAirDrawing) {
+            // Draw Rasengan Energy Orb on top of portal layers ONLY when [RS-16] Rasengan filter is selected
+            if (this.currentFilter.id === 'rasengan') {
                 for (const landmarks of results.multiHandLandmarks) {
                     this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
                 }
