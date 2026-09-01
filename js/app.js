@@ -1007,9 +1007,14 @@ class RetroLensApp {
                     this.drawHandSkeleton(landmarks, w, h, isSelfie);
                 }
 
-                // Render Swirling Rasengan Chakra Energy Orb on Palm (when drawing mode is OFF)
-                if (!this.isAirDrawing) {
-                    this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
+                // Gesture Shortcut: 1 Open Palm -> Auto Activate Air-Drawing Mode
+                if (GeometryUtils.isOpenHand(landmarks, w, h)) {
+                    if (!this.isAirDrawing) {
+                        this.isAirDrawing = true;
+                        const drawBtnText = document.getElementById('drawBtnText');
+                        if (drawBtnText) drawBtnText.innerText = 'DRAW: ON';
+                        this.playSound('mode');
+                    }
                 }
 
                 // Update Theremin Synthesizer Pitch from Hand Height
@@ -1139,12 +1144,11 @@ class RetroLensApp {
                 }
             }
 
-            // Draw Rasengan Energy Orb on top of portal layers
-            for (const landmarks of results.multiHandLandmarks) {
-                this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
-            }
-
-            if (this.currentFilter.id === 'rasengan') {
+            // Draw Rasengan Energy Orb on top of portal layers ONLY when [RS-16] Rasengan filter is selected AND drawing is OFF
+            if (this.currentFilter.id === 'rasengan' && !this.isAirDrawing) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    this.drawRasenganEnergyOrb(landmarks, w, h, isSelfie);
+                }
                 this.gestureHint.innerText = 'JUTSU // RASENGAN CHAKRA ACTIVE';
             }
         } else {

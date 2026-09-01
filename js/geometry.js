@@ -36,6 +36,24 @@ export class GeometryUtils {
     }
 
     /**
+     * Check if hand is fully open (open palm gesture)
+     */
+    static isOpenHand(landmarks, w, h, threshold = 140.0) {
+        if (!landmarks || landmarks.length < 21) return false;
+        
+        const wrist = [landmarks[0].x * w, landmarks[0].y * h];
+        const tipIndices = [8, 12, 16, 20];
+        let totalDist = 0;
+        for (const idx of tipIndices) {
+            const tip = [landmarks[idx].x * w, landmarks[idx].y * h];
+            totalDist += this.euclideanDist(tip, wrist);
+        }
+        
+        const meanDist = totalDist / tipIndices.length;
+        return meanDist > threshold;
+    }
+
+    /**
      * Check if hand is making a 2-Finger Gesture (✌️ Index + Middle extended)
      * Triggers Fullscreen Blur Shader
      */
